@@ -3,13 +3,15 @@ main = interact $
 
 -- exhaustive check from start to finish - using `next` to iterate (next must be strictly increasing)
 solve :: [Int] -> Int
-solve (a:b:xs) = length $ filter valid $ takeWhile (<= b) (iterate next a)
+solve (a:b:xs) = length $ filter valid $ takeWhile (\x -> (x /= []) && (squash x <= b)) (iterate next (unsquash a))
 
-next :: Int -> Int
-next n | nxs == [] = 1000000
-       | otherwise = squash $ (take 6) $ nxs
-         where nxs = nextList $ unsquash n
--- next = (+) 1
+-- next :: Int -> Int
+-- next n | nxs == [] = 1000000
+--        | otherwise = squash $ (take 6) $ nxs
+--          where nxs = nextList $ unsquash n
+
+next :: [Int] -> [Int]
+next = take 6 . nextList
 
 
 nextList :: [Int] -> [Int]
@@ -21,10 +23,8 @@ nextList (a:xs) | nxs /= [] = a:nxs
 
 
 -- change hasDouble to hasMultiple for part 1
-valid :: Int -> Bool
-valid n = n<1000000 &&  increasing (xs) && hasDouble(xs)
-    where
-        xs = unsquash(n)
+valid :: [Int] -> Bool
+valid xs = increasing (xs) && hasDouble(xs)
 
 
 -- has exactly 2 of some value
