@@ -11,7 +11,7 @@ solve (a:b:xs) = length $ filter valid $ takeWhile (\x -> (x /= []) && (squash x
 --          where nxs = nextList $ unsquash n
 
 next :: [Int] -> [Int]
-next = take 6 . nextList
+next = take 12 . nextList
 
 
 nextList :: [Int] -> [Int]
