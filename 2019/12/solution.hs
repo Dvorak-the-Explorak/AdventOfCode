@@ -1,9 +1,25 @@
+import Cycles
+
 main = interact $
-     show . solve . (map (map read)) . (map words) . lines
+     show . solvePart2 . (map (map read)) . (map words) . lines
 
 -- Find total energy at time step 1000
-solve :: [[Int]] -> Int
-solve x = energy $ autoCompose 1000 step (x, zeroed x)
+solvePart1 :: [[Int]] -> Int
+solvePart1 x = energy $ autoCompose 1000 step (x, zeroed x)
+
+solvePart2 :: [[Int]] -> Int
+solvePart2 x = (uncurry (+)) $ hareTortoise step (x, zeroed x)
+
+-- solvePart2 :: [[Int]] -> Int
+-- solvePart2 x = wrap $ findCycle (iterate step (x, zeroed x))
+
+-- wrap :: Eq a => Maybe (a, Int, Int) -> Int
+-- wrap (Nothing) = -1
+-- wrap (Just (x,y,z)) = y+z
+
+
+
+
 
 -- for debug 
 -- solve :: [[Int]] -> ([[Int]], [[Int]])
@@ -33,7 +49,7 @@ oneForce x y = map (signum . (uncurry (-))) (zip y x)
 -- calculate all forces on a given moon (all moons as second argument)
 --      can leave x in the cs list, as oneForce x x = [0,0,0]
 forces :: [Int] -> [[Int]] -> [Int]
-forces x xs = foldl vecSum (head each) (tail each)
+forces x xs = foldr vecSum (head each) (tail each)
                 where
                     each = (map (oneForce x) xs)
 -- forces x = sum . (map (oneForce x))
