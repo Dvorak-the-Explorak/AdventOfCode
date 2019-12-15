@@ -1,31 +1,49 @@
 import Cycles
+import Data.List (transpose)
 
 main = interact $
      show . solvePart2 . (map (map read)) . (map words) . lines
 
+
+
+
 -- Find total energy at time step 1000
+--  input is list of moons, each moon is list of coordinates
 solvePart1 :: [[Int]] -> Int
 solvePart1 x = energy $ autoCompose 1000 step (x, zeroed x)
 
 -- blegh
 solvePart2 :: [[Int]] -> Int
-solvePart2 x = foldr lcm 1 [solvePart2x x, solvePart2y x, solvePart2z x]
+solvePart2 x = foldr lcm 1 $ 
+                fmap (oneDSolve . transpose . (\x -> [x])) $
+                transpose x 
+            where
+                oneDSolve x = (uncurry (+)) $ hareTortoise step (x, zeroed x)
+-- solvePart2 x = foldr lcm 1 [solvePart2x x, solvePart2y x, solvePart2z x]
 -- solvePart2 x = (uncurry (+)) $ hareTortoise step (x, zeroed x)
 
-solvePart2x :: [[Int]] -> Int
-solvePart2x x = (uncurry (+)) $ hareTortoise step (x', zeroed x')
-                where
-                    x' = map (\y -> [head y]) x
 
-solvePart2y :: [[Int]] -> Int
-solvePart2y x = (uncurry (+)) $ hareTortoise step (x', zeroed x')
-                where
-                    x' = map (\y -> [(head.tail) y]) x
 
-solvePart2z :: [[Int]] -> Int
-solvePart2z x = (uncurry (+)) $ hareTortoise step (x', zeroed x')
-                where
-                    x' = map (\y -> [(head.tail.tail) y]) x
+-- oneDProblem :: [[Int]] -> Int -> Int
+-- oneDProblem n x = (uncurry (+)) $ hareTortoise step (x', zeroed x')
+--                 where
+--                     x' = transpose $  (transpose x) !! n
+-- solvePart2x :: [[Int]] -> Int
+-- solvePart2x x = (uncurry (+)) $ hareTortoise step (x', zeroed x')
+--                 where
+--                     x' = map (\y -> [head y]) x
+-- solvePart2x :: [[Int]] -> Int
+-- solvePart2x x = (uncurry (+)) $ hareTortoise step (x', zeroed x')
+--                 where
+--                     x' = transpose $ take 1 $ transpose x
+-- solvePart2y :: [[Int]] -> Int
+-- solvePart2y x = (uncurry (+)) $ hareTortoise step (x', zeroed x')
+--                 where
+--                     x' = map (\y -> [(head.tail) y]) x
+-- solvePart2z :: [[Int]] -> Int
+-- solvePart2z x = (uncurry (+)) $ hareTortoise step (x', zeroed x')
+--                 where
+--                     x' = map (\y -> [(head.tail.tail) y]) x
 
 -- to get initial velocity (all zero)
 zeroed :: [[Int]] -> [[Int]]
