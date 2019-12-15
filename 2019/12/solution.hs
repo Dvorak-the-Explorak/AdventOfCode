@@ -7,23 +7,25 @@ main = interact $
 solvePart1 :: [[Int]] -> Int
 solvePart1 x = energy $ autoCompose 1000 step (x, zeroed x)
 
+-- blegh
 solvePart2 :: [[Int]] -> Int
-solvePart2 x = (uncurry (+)) $ hareTortoise step (x, zeroed x)
+solvePart2 x = foldr lcm 1 [solvePart2x x, solvePart2y x, solvePart2z x]
+-- solvePart2 x = (uncurry (+)) $ hareTortoise step (x, zeroed x)
 
--- solvePart2 :: [[Int]] -> Int
--- solvePart2 x = wrap $ findCycle (iterate step (x, zeroed x))
+solvePart2x :: [[Int]] -> Int
+solvePart2x x = (uncurry (+)) $ hareTortoise step (x', zeroed x')
+                where
+                    x' = map (\y -> [head y]) x
 
--- wrap :: Eq a => Maybe (a, Int, Int) -> Int
--- wrap (Nothing) = -1
--- wrap (Just (x,y,z)) = y+z
+solvePart2y :: [[Int]] -> Int
+solvePart2y x = (uncurry (+)) $ hareTortoise step (x', zeroed x')
+                where
+                    x' = map (\y -> [(head.tail) y]) x
 
-
-
-
-
--- for debug 
--- solve :: [[Int]] -> ([[Int]], [[Int]])
--- solve x = step (x, zeroed x)
+solvePart2z :: [[Int]] -> Int
+solvePart2z x = (uncurry (+)) $ hareTortoise step (x', zeroed x')
+                where
+                    x' = map (\y -> [(head.tail.tail) y]) x
 
 -- to get initial velocity (all zero)
 zeroed :: [[Int]] -> [[Int]]
