@@ -1,7 +1,7 @@
 import Control.Monad (liftM, ap)
 
 main = interact $
-    show . solve . (map read) . words
+    show . solveB . (map read) . words
 
 -- "State of the system" tape and program counter
 type Tape = ([Int], Int)
@@ -54,12 +54,11 @@ runToHaltOpCode t0 (TapeOp op)  | r == 99 = t1 -- halt code
                               (r, t1) = op t0 
 
 opCode :: Int -> TapeOp Int
-opCode 99 = undefined
--- intCode 99 = TapeOp (\t -> ((), t))
 opCode 1 = opAdd
 opCode 2 = opMult
-opCode _ = undefined
--- opCode _ = TapeOp (\t -> (99, t)) -- halt
+-- opCode 99 = undefined
+-- opCode _ = undefined
+opCode _ = TapeOp (\t -> (99, t)) -- halt
 
 -- takes current tapeState, returns next opCode and updated tapeState
 opAdd :: TapeOp Int
@@ -91,11 +90,22 @@ setAtIndex (x:xs) n val = x:(setAtIndex xs (n-1) val)
 setAtIndex [] _ _ = undefined
 
 
-
-
 -- -- Given the input tape, return value at position 0 after halting
-solve :: [Int] -> Int
-solve xs = head $ fst $ (uncurry runToHalt) $ initialise $ restore xs
+solveA :: [Int] -> Int
+solveA xs = runProgram $ restore xs
+
+
+solveB :: [Int] -> Int
+solveB xs = 100*noun + verb
+  where
+    (noun,verb) = head [(n,v) | n <- [0..99], v <- [0..99], 19690720 == (runProgram $ restore2 xs n v)]
+
+
+runProgram :: [Int] -> Int
+runProgram = head . fst . (uncurry runToHalt) . initialise
+
+-- solveA :: [Int] -> Int
+-- solveA xs = head $ fst $ (uncurry runToHalt) $ initialise $ restore xs
 -- solve :: [Int] -> Tape
 -- solve xs =  (uncurry runToHalt) $ initialise xs
 -- solve :: [Int] -> (Int, Tape)
@@ -104,9 +114,12 @@ solve xs = head $ fst $ (uncurry runToHalt) $ initialise $ restore xs
 initialise :: [Int] -> (Tape, TapeOp Int)
 initialise xs = ((xs++(repeat 0),0), opCode (xs !! 0))
 
+-- restore :: [Int] -> [Int]
+-- restore (x:_:_:xs) = x:12:2:xs
+-- restore _ = undefined
+
 restore :: [Int] -> [Int]
-restore (x:_:_:xs) = x:12:2:xs
-restore _ = undefined
+restore xs = restore2 xs 12 2
 
 restore2 :: [Int] -> Int -> Int-> [Int]
 restore2 (x:_:_:xs) noun verb = x:noun:verb:xs
