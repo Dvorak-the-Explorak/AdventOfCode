@@ -29,26 +29,36 @@ instance Monad TapeOp where
  -- return value is the tape itself, tape is not modified
 getTape :: TapeOp Tape
 getTape = TapeOp (\t -> (t,t))
--- getTape t = (t,t) -- Why not define like this
+-- getTape t = (t,t) -- Why not define like this (monad something something?)
  
  -- given a function that modifies a Tape, create a TapeOp with no return value
 setTape :: (Tape -> Tape) -> TapeOp ()
 setTape f = TapeOp (\t -> ((), f t))
 
 -- take a tape and an operation, give back the return value and updated state
-runOp :: Tape -> TapeOp a -> (a,Tape)
-runOp t (TapeOp op) = op t
+runOp :: TapeOp a -> Tape -> Tape
+runOp (TapeOp op) t  = snd $ op t
 
--- nextOp :: Tape -> TapeOp a
--- nextOp (t,pc) = opCode (t !! pc)
+applyOp :: TapeOp a -> Tape -> (a,Tape)
+applyOp (TapeOp op) t  = op t
 
--- takes initial state and IntCode of first operation, runs until return code is 99
-runToHalt :: Tape -> Int -> Tape
-runToHalt t0 99 = t0
-runToHalt t0 code0 = runToHalt t1 code1
-                      where
-                        TapeOp op = opCode code0
-                        (code1, t1) = op t0 
+nextOp :: Tape -> TapeOp Int
+nextOp (t,pc) = opCode (t !! pc)
+
+-- read the tape to find the opcode
+doNextOp :: TapeOp Int
+doNextOp = TapeOp $ \(t,pc) -> applyOp (return (t !! pc) >>= opCode) (t,pc)
+
+-- compose operation n with all following operations until halt
+recursiveRunCode :: Int -> TapeOp Int
+recursiveRunCode 0 = doNextOp >>= recursiveRunCode -- find first intcode from the tape
+recursiveRunCode 99 = return 99
+recursiveRunCode n = (opCode n) >>= recursiveRunCode 
+
+-- just a wrapper for recursiveRunCode
+runToHalt :: TapeOp Int
+runToHalt = recursiveRunCode 0
+
 
 -- get an opcode from its IntCode
 opCode :: Int -> TapeOp Int
@@ -89,9 +99,12 @@ setAtIndex (x:xs) n val = x:(setAtIndex xs (n-1) val)
 setAtIndex [] _ _ = undefined
 
 
--- -- Given the input tape, return value at position 0 after halting
+-- -- -- Given the input tape, return value at position 0 after halting
 solveA :: [Int] -> Int
 solveA xs = runProgram $ restore xs
+-- Given the input tape, return value at position 0 after halting
+-- solveA :: [Int] -> [Int]
+-- solveA xs = take 20 $ fst $ runOp runToHalt $ initialise xs
 
 -- solve for the correcct noun,verb
 solveB :: [Int] -> Int
@@ -100,11 +113,16 @@ solveB xs = 100*noun + verb
     (noun,verb) = head [(n,v) | n <- [0..99], v <- [0..99], 19690720 == (runProgram $ restore2 xs n v)]
 
 -- runs the given program, returning the first element after halting
+-- runProgram :: [Int] -> Int
+-- runProgram xs = head $ fst $ (uncurry runToHalt) $ (initialise xs)
 runProgram :: [Int] -> Int
-runProgram xs = head $ fst $ runToHalt (initialise xs) (xs !! 0)
+runProgram xs = head $ fst $ runOp runToHalt (initialise xs)
+
 
 -- turns the given list into a Tape by adding trailing zeros and setting the program counter to 0
 --  also gets the first operation on the tape
+-- initialise :: [Int] -> (Tape, Int)
+-- initialise xs = ( (xs++(repeat 0),0) 
 initialise :: [Int] -> Tape
 initialise xs = (xs++(repeat 0),0)
 
@@ -117,7 +135,7 @@ restore2 :: [Int] -> Int -> Int-> [Int]
 restore2 (x:_:_:xs) noun verb = x:noun:verb:xs
 restore2 xs noun verb = restore2 (xs ++ (repeat 0)) noun verb
 
--- Monadic version of restore
-restoreTape :: TapeOp ()
-restoreTape = setTape (\(t,pc) -> (restore t, pc))
+-- -- Monadic version of restore
+-- restoreTape :: TapeOp Int
+-- restoreTape = setTape (\(t,pc) -> (restore t, pc))
 
