@@ -39,20 +39,18 @@ setTape f = TapeOp (\t -> ((), f t))
 runOp :: Tape -> TapeOp a -> (a,Tape)
 runOp t (TapeOp op) = op t
 
--- takes initial state and first operation, runs until return code is 99
-runToHalt :: Tape -> TapeOp Int -> Tape
-runToHalt t0 (TapeOp op)  | r == 99 = t1 -- halt code
-                          | otherwise = runToHalt t1 $ opCode r
-                          where
-                              (r, t1) = op t0 
+-- nextOp :: Tape -> TapeOp a
+-- nextOp (t,pc) = opCode (t !! pc)
 
--- takes initial state and first operation, runs until return code is 99
-runToHaltOpCode :: Tape -> TapeOp Int -> Tape
-runToHaltOpCode t0 (TapeOp op)  | r == 99 = t1 -- halt code
-                          | otherwise = runToHalt t1 $ opCode r
-                          where
-                              (r, t1) = op t0 
+-- takes initial state and IntCode of first operation, runs until return code is 99
+runToHalt :: Tape -> Int -> Tape
+runToHalt t0 99 = t0
+runToHalt t0 code0 = runToHalt t1 code1
+                      where
+                        TapeOp op = opCode code0
+                        (code1, t1) = op t0 
 
+-- get an opcode from its IntCode
 opCode :: Int -> TapeOp Int
 opCode 1 = opAdd
 opCode 2 = opMult
@@ -84,6 +82,7 @@ opMult = TapeOp (\(t0,pc0) -> let
                               pc1 = pc0 + 4
                              in (t1 !! pc1, (t1,pc1)))
 
+-- `setAtIndex xs i val` sets xs[i]=val
 setAtIndex :: [Int] -> Int -> Int -> [Int]
 setAtIndex (x:xs) 0 val = val:xs
 setAtIndex (x:xs) n val = x:(setAtIndex xs (n-1) val)
@@ -94,37 +93,31 @@ setAtIndex [] _ _ = undefined
 solveA :: [Int] -> Int
 solveA xs = runProgram $ restore xs
 
-
+-- solve for the correcct noun,verb
 solveB :: [Int] -> Int
 solveB xs = 100*noun + verb
   where
     (noun,verb) = head [(n,v) | n <- [0..99], v <- [0..99], 19690720 == (runProgram $ restore2 xs n v)]
 
-
+-- runs the given program, returning the first element after halting
 runProgram :: [Int] -> Int
-runProgram = head . fst . (uncurry runToHalt) . initialise
+runProgram xs = head $ fst $ runToHalt (initialise xs) (xs !! 0)
 
--- solveA :: [Int] -> Int
--- solveA xs = head $ fst $ (uncurry runToHalt) $ initialise $ restore xs
--- solve :: [Int] -> Tape
--- solve xs =  (uncurry runToHalt) $ initialise xs
--- solve :: [Int] -> (Int, Tape)
--- solve xs = (uncurry runOp) $ initialise  xs
+-- turns the given list into a Tape by adding trailing zeros and setting the program counter to 0
+--  also gets the first operation on the tape
+initialise :: [Int] -> Tape
+initialise xs = (xs++(repeat 0),0)
 
-initialise :: [Int] -> (Tape, TapeOp Int)
-initialise xs = ((xs++(repeat 0),0), opCode (xs !! 0))
-
--- restore :: [Int] -> [Int]
--- restore (x:_:_:xs) = x:12:2:xs
--- restore _ = undefined
-
+-- restore the gravity assist program
 restore :: [Int] -> [Int]
 restore xs = restore2 xs 12 2
 
+-- restore the program with arbitrary noun and verb
 restore2 :: [Int] -> Int -> Int-> [Int]
 restore2 (x:_:_:xs) noun verb = x:noun:verb:xs
 restore2 xs noun verb = restore2 (xs ++ (repeat 0)) noun verb
 
+-- Monadic version of restore
 restoreTape :: TapeOp ()
 restoreTape = setTape (\(t,pc) -> (restore t, pc))
 
