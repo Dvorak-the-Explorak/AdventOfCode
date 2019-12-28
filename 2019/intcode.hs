@@ -52,6 +52,15 @@ getVals _t [] = []
 getVals (tape, pc) (0:ms) = (tape !! (tape !! (pc+1) )):(getVals (tape, pc+1) ms)
 getVals (tape, pc) (1:ms) = (tape !! (pc+1) ):(getVals (tape, pc+1) ms)
 
+getModes :: Int -> [Int]
+getModes x = revDigits (div x 100) -- will create infinite list of 0 at the end
+  where
+    revDigits x = (mod x 10):(revDigits (div x 10))
+
+getParams :: Tape -> [Int]
+getParams (tape,pc) = getVals (tape,pc) $ getModes (tape !! pc)
+
+
 
  -- given a function that modifies a Tape, create a TapeOp with no return value
 setTape :: (Tape -> Tape) -> TapeOp ()
@@ -85,44 +94,51 @@ runToHalt = recursiveRunCode 0
 
 -- get an opcode from its IntCode
 opCode :: Int -> TapeOp Int
-opCode 1 = opAdd
-opCode 2 = opMult
--- opCode 99 = undefined
--- opCode _ = undefined
-opCode _ = TapeOp (\t -> (99, t)) -- halt
-
-opAdd :: TapeOp Int
-opAdd = TapeOp (\(t0,pc0) -> let
-                              vals = getVals (t0,pc0) [0,0,1]
-                              result = (vals !! 0) + (vals !! 1)
-                              t1 = setAtIndex t0 (vals !! 2) result
-                              pc1 = pc0 + 4
-                             -- in (pc1, (t1,pc1)))
-                             in (t1 !! pc1, (t1,pc1))) 
+opCode x = opCode' (mod x 100)
+  where 
+    opCode' 1 = opAdd
+    opCode' 2 = opMult
+    -- opCode 99 = undefined
+    -- opCode _ = undefined
+    opCode' _ = TapeOp (\t -> (99, t)) -- halt
 
 
-
--- -- takes current tapeState, returns next opCode and updated tapeState
--- opAdd :: TapeOp Int
--- opAdd = TapeOp (\(t0,pc0) -> let
---                               s0 = t0 !! (pc0+1) -- where to get first summand
---                               s1 = t0 !! (pc0+2) -- where to get second summand
---                               dest = t0 !! (pc0+3) -- where to put result
---                               val = (t0 !! s0) + (t0 !! s1)
---                               t1 = setAtIndex t0 dest val
+-- How to know where pc1 is? 
+--  ie how many values does f consume??
+-- pureOp :: ([Int] -> Int) -> TapeOp Int
+-- pureOp f = TapeOp (\(t0,pc0) -> let
+--                               vals = getParams (t0,pc0)
+--                               result = (vals !! 0) + (vals !! 1)
+--                               t1 = setAtIndex t0 (vals !! 2) result
 --                               pc1 = pc0 + 4
---                              in (t1 !! pc1, (t1,pc1)))
+--                              in (t1 !! pc1, (t1,pc1))) 
 
--- takes current tapestate, returns next opCode and updated tapestate
-opMult :: TapeOp Int
-opMult = TapeOp (\(t0,pc0) -> let
-                              s0 = t0 !! (pc0+1) -- where to get first operand
-                              s1 = t0 !! (pc0+2) -- where to get second operand
-                              dest = t0 !! (pc0+3) -- where to put result
-                              val = (t0 !! s0) * (t0 !! s1)
-                              t1 = setAtIndex t0 dest val
-                              pc1 = pc0 + 4
-                             in (t1 !! pc1, (t1,pc1)))
+-- uses (n+1) parameters from the tape
+nAryOp :: ([Int] -> (Int, [Int])) -> TapeOp Int
+nAryOp f = TapeOp (\(t0,pc0) -> let
+                                  vals = getParams (t0,pc0)
+                                  (result, vals') = f vals
+                                  t1 = setAtIndex t0 (head vals') result
+                                  pc1 = pc0 + 4
+                                in (t1 !! pc1, (t1,pc1))) 
+
+binOp :: (Int -> Int -> Int) -> TapeOp Int
+binOp f = nAryOp $  \xs -> 
+                        ( f (xs !! 0) (xs !! 1), 
+                          drop 2 xs )
+                      
+
+-- -- uses 3 parameters from the tape: val1, val2, destination
+-- binOp :: (Int -> Int -> Int) -> TapeOp Int
+-- binOp f = TapeOp (\(t0,pc0) -> let
+--                                 vals = getParams (t0,pc0)
+--                                 result = f (head vals) (vals !! 1)
+--                                 t1 = setAtIndex t0 (vals !! 2) result
+--                                 pc1 = pc0 + 4
+--                                in (t1 !! pc1, (t1,pc1))) 
+
+opAdd = binOp (+)
+opMult = binOp (*)
 
 -- `setAtIndex xs i val` sets xs[i]=val
 setAtIndex :: [Int] -> Int -> Int -> [Int]
