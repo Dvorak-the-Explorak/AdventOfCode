@@ -1,155 +1,112 @@
-{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DeriveFunctor, GADTs #-}
+
+type Tape = [Int]
+
+data IntComp = IntComp {
+  tape :: Tape,
+  pc :: Int,
+  inputs :: [Int],
+  outputs :: [Int]
+}
+
+instance Show IntComp where
+  show (IntComp t pc i o) = (show pc) ++ (show $ take n t) ++ "\n"
+                            ++ "i" ++ (show i) ++ "o"++ (show o)
+    where
+      n = max pc $ (+1) $ findEnd 0 0 t
+      -- look for 10 '99's in a row
+      findEnd start 100 _xs = start
+      findEnd start i (99:xs) = findEnd start (i+1) xs
+      findEnd start i (_:xs) = findEnd (start+i+1) 0 xs
 
 
--- module Intcode where
+-- class for highlighting element of a list
+data Lit a = Lit (String -> String) a
 
-import Control.Monad (liftM, ap)
+instance Show a => Show (Lit a) where
+  show (Lit f x) = f $ show x
+
+
+
+
+highlight :: Show a => Int -> [a] -> [Lit a]
+highlight n xs = pre' ++ [target'] ++ suff'
+  where
+    (pre,target:suff) = splitAt n xs
+    pre' = map (Lit id) pre
+    suff' = map (Lit id) suff
+    target' = Lit (\s -> "_"++s++"_") target
+
+
+
+
 
 main = interact $
-    show . debug . (map read) . words
-
--- debug :: [Int] -> [Int]
--- debug _ = getVals ([1,2,3,4,2,2,2], 0) [1]
+    show . run2 . (map read) . words
 
 
-debug :: [Int] -> [Int]
-debug xs = take 10 $ tape $ runOp runToHalt $ tapeFromList xs
+run1 :: [Int] -> [Int]
+run1 = take 10 . tape . icRun . flip icBoot []
 
-
-debug2 :: [Int] -> [Int]
-debug2 xs = take 10 $ tape $ runOp doNextOp $ tapeFromList xs
+run2 :: [Int] -> IntComp
+run2 = icRun . flip icBoot []
 
 
 
--- "State of the system" tape and program counter
--- type Tape = ([Int], Int)
 
-data Tape = Tape {tape::[Int], pc::Int}
 
--- operations on a tape which also produce values (of type a)
---      monadic type
-data TapeOp a = TapeOp (Tape -> (a,Tape))
-    deriving (Functor)
+icBoot :: Tape -> [Int] -> IntComp
+icBoot t inputs = IntComp (t ++ repeat 99) 0 inputs []
 
---hecc what is an Applicative?  looks like pure is just return anyway
---  and someone on StackExchange said this will work (https://stackoverflow.com/a/31652592/2368900)
-instance Applicative TapeOp where
-  pure = return
-  (<*>) = ap
 
-instance Monad TapeOp where
-    -- (>>=) :: TapeOp a -> (a -> TapeOp a) -> TapeOp a
-    -- getOp2 :: a -> TapeOp a (give me a result type and I'll give you a TapeOp)
-    TapeOp op1 >>= getOp2 = TapeOp (\t0 ->  let 
-                                             (r1, t1) = op1 t0  -- result of first operation and intermediate tape state
-                                             TapeOp op2 = getOp2 r1 -- second operation selected from result of first
-                                            in op2 t1) -- result and tape state from second operation
-    return r = TapeOp (\t0 -> (r, t0)) -- don't modify the tape, just return the value given
+icHalted :: IntComp -> Bool
+icHalted c = tape c !! pc c == 99
 
- -- return value is the tape itself, tape is not modified
-getTape :: TapeOp Tape
-getTape = TapeOp (\t -> (t,t))
--- getTape t = (t,t) -- Why not define like this (monad something something?)
- 
-
-getVal :: Tape -> Int -> Int
-getVal t n = (tape t) !! n 
-
--- Takes a tape and a list of parameter modes, pulls out the parameter values
-getVals :: Tape -> [Int] -> [Int]
-getVals _t [] = []
-getVals t (m:ms) = case m of
-    0 -> relP:(getVals (inc t) ms)
-    1 -> dirP:(getVals (inc t) ms)
+icStep :: IntComp -> IntComp
+icStep c@(IntComp tape pc ins outs) = jumpPc $ icOp opcode c args
   where
-    relP = (tape t) !! dirP 
-    dirP = (tape t) !! ((pc t)+1)
+    opcode :: Int
+    opcode = tape !! pc
+    jumpPc (IntComp t pc i o) = IntComp t pc' i o
+    pc' = icOpJumps opcode pc
+    args = readArgs modes $ pc+1
+    modes = icModes opcode
+    -- local function to closure 'tape' in
+    readArgs (0:ms) i = (tape !! (tape !! i)):(readArgs ms (i+1)) -- relative
+    readArgs (1:ms) i = (tape !! i):(readArgs ms (i+1)) -- direct
 
-getModes :: Int -> [Int]
-getModes x = revDigits (div x 100) -- will create infinite list of 0 at the end
-  where
-    revDigits x = (mod x 10):(revDigits (div x 10))
-
-getParams :: Tape -> [Int]
-getParams t = getVals t $ getModes (curr t)
-
-
-
- -- given a function that modifies a Tape, create a TapeOp with no return value
-setTape :: (Tape -> Tape) -> TapeOp ()
-setTape f = TapeOp (\t -> ((), f t))
-
--- take a tape and an operation, give back just the updated state
-runOp :: TapeOp a -> Tape -> Tape
-runOp (TapeOp op) t  = snd $ op t
-
--- take a tape and an operation, give back the return value and updated state
-applyOp :: TapeOp a -> Tape -> (a,Tape)
-applyOp (TapeOp op) t  = op t
-
-nextOp :: Tape -> TapeOp Int
-nextOp t = opCode $ curr t
-
-inc :: Tape -> Tape
-inc t = Tape { tape = tape t, pc = (pc t) + 1}
-
-curr :: Tape -> Int
-curr t = (tape t) !! (pc t)
-
--- read the tape to find the opcode
-doNextOp :: TapeOp Int
-doNextOp = TapeOp $ \t -> applyOp (return (curr t) >>= opCode) t
--- doNextOp = TapeOp $ \(t,pc) -> applyOp (return (t !! pc) >>= opCode) (t,pc)
-
-
--- just a wrapper for recursiveRunCode
-runToHalt :: TapeOp Int
-runToHalt = recursiveRunCode 0
-  where
-    recursiveRunCode 0 = doNextOp >>= recursiveRunCode -- find first intcode from the tape
-    recursiveRunCode 99 = return 99
-    recursiveRunCode n = (opCode n) >>= recursiveRunCode 
-
--- get an opcode from its IntCode
-opCode :: Int -> TapeOp Int
-opCode x = opCode' (mod x 100)
+icOp :: Int -> IntComp -> [Int] -> IntComp
+icOp = icOp' . (flip mod 100)
   where 
-    opCode' 1 = opAdd
-    opCode' 2 = opMult
-    -- opCode 99 = undefined
-    -- opCode _ = undefined
-    opCode' _ = TapeOp (\t -> (99, t)) -- halt
+    icOp' 1 = \c (x:y:d:_) -> icSetTapeAt d (x+y) c -- add
+    icOp' 2 = \c (x:y:d:_) -> icSetTapeAt d (x*y) c -- multiply
+    icOp' 3 = \c@(IntComp t pc (i:is) o) (d:_) -> icSetTapeAt d (i) c -- take input
+    icOp' 4 = \(IntComp t pc i o) (val:_) -> IntComp t pc i (val:o)
 
--- uses (n+1) parameters from the tape
-nAryOp :: ([Int] -> (Int, [Int])) -> TapeOp Int
-nAryOp f = TapeOp (\t -> let
-                          vals = getParams t
-                          (result, vals') = f vals
-                          t1 = setAtIndex (tape t) (head vals') result
-                          pc1 = (pc t) + 4
+icSetTapeAt :: Int -> Int -> IntComp -> IntComp
+icSetTapeAt n val (IntComp t pc i o) = IntComp (setAtIndex n val t) pc i o
 
-                        in (t1 !! pc1, Tape t1 pc1)) 
+icRun :: IntComp -> IntComp
+icRun c | icHalted c = c
+        | otherwise = icRun $ icStep c
 
-binOp :: (Int -> Int -> Int) -> TapeOp Int
-binOp f = nAryOp $  \xs -> 
-                        ( f (xs !! 0) (xs !! 1), 
-                          drop 2 xs )
+-- takes an opcode, gives a function to update the PC 
+icOpJumps :: Int -> Int -> Int
+icOpJumps _op = (+4)
 
-opAdd = binOp (+)
-opMult = binOp (*)
+
+
+
+
+-- will create infinite list of 0 at the end
+icModes :: Int -> [Int]
+icModes x = revDigits (x `div` 100)
+  where
+    revDigits x = (x `mod` 10):(revDigits (x `div` 10))
+
 
 -- `setAtIndex xs i val` sets xs[i]=val
-setAtIndex :: [Int] -> Int -> Int -> [Int]
-setAtIndex (x:xs) 0 val = val:xs
-setAtIndex (x:xs) n val = x:(setAtIndex xs (n-1) val)
-setAtIndex [] _ _ = undefined
-
--- runs the given program, returning the first element after halting
--- runProgram :: [Int] -> Int
--- runProgram xs = head $ fst $ (uncurry runToHalt) $ (tapeFromList xs)
-runProgram :: [Int] -> Int
-runProgram xs = head $ tape $ runOp runToHalt (tapeFromList xs)
-
--- turns the given list into a Tape by adding trailing 99s and setting the program counter to 0
-tapeFromList :: [Int] -> Tape
-tapeFromList xs = Tape (xs++(repeat 99)) 0
+setAtIndex :: Int -> a -> [a] -> [a]
+setAtIndex n val xs = pre ++ [val] ++ suff
+  where
+    (pre,_:suff) = splitAt n xs
