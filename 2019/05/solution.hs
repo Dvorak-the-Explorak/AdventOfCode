@@ -3,13 +3,13 @@ import Intcode
 main = interact $
   show . solveB . (map read) . words
 
-debug c = ((icGetTape c') !! 294, c')
+debug c = (c')
   where
-    c' = icRun $ flip icBoot [0] c
+    c' = icRun $ flip icBoot [5] c
 
 solveA :: [Int] -> Int
-solveA = head . icGetOutputs . icRun . flip icBoot [1]
+solveA = last . icGetOutputs . icRun . flip icBoot [1]
 
 
 solveB :: [Int] -> Int
-solveB = head . icGetOutputs . icRun . flip icBoot [5]
+solveB = last . icGetOutputs . icRun . flip icBoot [5]
