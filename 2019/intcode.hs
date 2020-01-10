@@ -126,13 +126,13 @@ icRun c = icRun' 0 c
 
 -- takes an opcode, gives a function to update the PC 
 icOpJumps :: Int -> Int -> Int
-icOpJumps = f . flip mod 100
+icOpJumps = icOpJumps' . flip mod 100
   where 
-    f 1 = (+4)
-    f 2 = (+4)
-    f 3 = (+2)
-    f 4 = (+2)
-    f n = error $ "Unknown jump for opcode " ++ show n
+    icOpJumps' 1 = (+4)
+    icOpJumps' 2 = (+4)
+    icOpJumps' 3 = (+2)
+    icOpJumps' 4 = (+2)
+    icOpJumps' n = error $ "Unknown jump for opcode " ++ show n
 
 
 
