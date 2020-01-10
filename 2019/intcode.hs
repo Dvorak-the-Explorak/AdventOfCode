@@ -1,5 +1,9 @@
+module Intcode (Tape,IntComp,icBoot,icRun) where
+
 {-# LANGUAGE DeriveFunctor, GADTs #-}
 import Data.Maybe
+
+
 
 
 
@@ -41,8 +45,8 @@ highlight n xs = pre' ++ [target'] ++ suf'
     suf' = map (Lit id) suf
     target' = Lit (\s -> "<"++s++">") target
 
-main = interact $
-    show . run2 . (map read) . words
+-- main = interact $
+--     show . run2 . (map read) . words
 
 
 run1 :: [Int] -> [Int]
