@@ -1,4 +1,4 @@
-module Intcode (Tape,IntComp,icBoot,icRun) where
+module Intcode (Tape,IntComp,icBoot,icRun,icGetTape,icGetPC,icGetInputs,icGetOutputs) where
 
 {-# LANGUAGE DeriveFunctor, GADTs #-}
 import Data.Maybe
@@ -15,6 +15,12 @@ data IntComp = IntComp {
   inputs :: [Int],
   outputs :: [Int]
 }
+
+icGetTape c = tape c
+icGetPC c = pc c 
+icGetInputs c = inputs c
+icGetOutputs c = outputs c
+
 
 instance Show IntComp where
   show (IntComp t pc i o) =    "tape: " ++ (show $ highlight pc t') ++ "\n"
@@ -69,7 +75,6 @@ justPrefix = map fromJust . takeWhile isJust
 icBoot :: [Int] -> [Int] -> IntComp
 icBoot t inputs = IntComp ((map Just t) ++ repeat Nothing) 0 inputs []
 
-
 icHalted :: IntComp -> Bool
 icHalted c = case tape c !! pc c of
   Just 99 -> True
@@ -100,23 +105,34 @@ icOp = icOp' . (flip mod 100)
   where 
     icOp' 1 = \c (x:y:d:_) -> icSetTapeAt d (x+y) c -- add
     icOp' 2 = \c (x:y:d:_) -> icSetTapeAt d (x*y) c -- multiply
-    icOp' 3 = \c@(IntComp t pc (i:is) o) (d:_) -> icSetTapeAt d (i) c -- take input
+    icOp' 3 = \(IntComp t pc (i:is) o) (d:_) -> icSetTapeAt d (i) (IntComp t pc is o) -- take input
     icOp' 4 = \(IntComp t pc i o) (val:_) -> IntComp t pc i (val:o)
+    icOp' n = \c -> error $ "Unknown opcode: " ++ show n ++ "\n"
+                      ++ show c
 
 icSetTapeAt :: Int -> Int -> IntComp -> IntComp
-icSetTapeAt n val (IntComp t pc i o) = IntComp (setAtIndex n (Just val) t) pc i o
+icSetTapeAt n val c = c {tape = t'}
+  where 
+    t' = setAtIndex n (Just val) $ tape c
 
 icRun :: IntComp -> IntComp
-icRun c | icHalted c = c
-        | otherwise = icRun $ icStep c
+icRun c = icRun' 0 c
+  where
+    icRun' 0 c = c
+    icRun' n c  | icHalted c = c
+                | otherwise = icRun' (n-1) $ icStep c
+-- icRun c | icHalted c = c
+--         | otherwise = icRun $ icStep c
 
 -- takes an opcode, gives a function to update the PC 
 icOpJumps :: Int -> Int -> Int
-icOpJumps 1 = (+4)
-icOpJumps 2 = (+4)
-icOpJumps 3 = (+2)
-icOpJumps 4 = (+2)
-icOpJumps _op = (+4)
+icOpJumps = f . flip mod 100
+  where 
+    f 1 = (+4)
+    f 2 = (+4)
+    f 3 = (+2)
+    f 4 = (+2)
+    f n = error $ "Unknown jump for opcode " ++ show n
 
 
 
