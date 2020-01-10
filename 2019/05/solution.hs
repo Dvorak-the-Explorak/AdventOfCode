@@ -1,11 +1,15 @@
 import Intcode
 
 main = interact $
-  show . debug . (map read) . words
+  show . solveB . (map read) . words
 
-debug c = (icGetTape c' !! 255, c')
+debug c = ((icGetTape c') !! 255, c')
   where
     c' = icRun $ flip icBoot [1] c
 
-solve :: [Int] -> Int
-solve = head . icGetOutputs . icRun . flip icBoot [1]
+solveA :: [Int] -> Int
+solveA = head . icGetOutputs . icRun . flip icBoot [1]
+
+
+solveB :: [Int] -> Int
+solveB = head . icGetOutputs . icRun . flip icBoot [5]

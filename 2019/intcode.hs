@@ -82,33 +82,64 @@ icHalted c = case tape c !! pc c of
   _ -> False
 
 icStep :: IntComp -> IntComp
-icStep c@(IntComp tape pc ins outs) = jumpPc $ icOp opcode c $ justPrefix args
+icStep c@(IntComp tape pc ins outs) = icOp opcode args modes c
   where
     opcode :: Int
     opcode  | isJust x = fromJust x
             | otherwise = error $ "Null opcode:\n" ++ show c
       where 
         x = (tape !! pc)
-    jumpPc (IntComp t pc i o) = IntComp t pc' i o
-    pc' = icOpJumps opcode pc
-    args = readArgs modes $ pc+1
+    args = drop (pc+1) tape
     modes = icModes opcode
-    -- local function to closure 'tape' in
-    readArgs (0:ms) i = (tape !! curr):(readArgs ms (i+1)) -- relative
-      where
-        curr  | isJust (tape !! i)  = fromJust (tape !! i)
-              | otherwise           = error $ "Null pointer dereference in relative argument:\n" ++ show c
-    readArgs (1:ms) i = (tape !! i):(readArgs ms (i+1)) -- direct
 
-icOp :: Int -> IntComp -> [Int] -> IntComp
+-- #TODO incorporate the Maybe stuff better
+icOp :: Int -> [Maybe Int] -> [Int] -> IntComp -> IntComp
 icOp = icOp' . (flip mod 100)
   where 
-    icOp' 1 = \c (x:y:d:_) -> icSetTapeAt d (x+y) c -- add
-    icOp' 2 = \c (x:y:d:_) -> icSetTapeAt d (x*y) c -- multiply
-    icOp' 3 = \(IntComp t pc (i:is) o) (d:_) -> icSetTapeAt d (i) (IntComp t pc is o) -- take input
-    icOp' 4 = \(IntComp t pc i o) (val:_) -> IntComp t pc i (val:o)
-    icOp' n = \c -> error $ "Unknown opcode: " ++ show n ++ "\n"
-                      ++ show c
+    icOp' 1 ((Just x):(Just y):(Just d):_) (m1:m2:_) c  = icJump 4 $ icSetTapeAt d (x'+y') c -- add
+      where
+        x' = if m1 == 1 then x else fromJust ((tape c) !! x)
+        y' = if m2 == 1 then y else fromJust ((tape c) !! y)
+    icOp' 2 ((Just x):(Just y):(Just d):_) (m1:m2:_) c  = icJump 4 $icSetTapeAt d (x'*y') c -- multiply
+      where
+        x' = if m1 == 1 then x else fromJust ((tape c) !! x)
+        y' = if m2 == 1 then y else fromJust ((tape c) !! y)
+    icOp' 3 ((Just d):_) _ (IntComp t pc (i:is) o)      = icJump 2 $ icSetTapeAt d i (IntComp t pc is o) -- take input
+    icOp' 4 ((Just val):_) (m:_) c@(IntComp t pc i o)   = icJump 2 $ IntComp t pc i (val':o)
+      where
+        val' = if m == 1 then val else fromJust ((tape c) !! val)
+    icOp' 5 ((Just x):(Just y):_) (m1:m2:_) c           = if x' > 0 
+                                                            then c { pc = y} 
+                                                            else icJump 3 c
+      where
+        x' = if m1 == 1 then x else fromJust ((tape c) !! x)
+        y' = if m2 == 1 then y else fromJust ((tape c) !! y)
+    icOp' 6 ((Just x):(Just y):_) (m1:m2:_) c           = if x' == 0 
+                                                            then c { pc = y} 
+                                                            else icJump 3 c
+      where
+        x' = if m1 == 1 then x else fromJust ((tape c) !! x)
+        y' = if m2 == 1 then y else fromJust ((tape c) !! y)
+    icOp' 7 ((Just x):(Just y):(Just d):_) (m1:m2:_) c  = icJump 4 $
+                                                            if x' < y'
+                                                              then icSetTapeAt d 1 c
+                                                              else icSetTapeAt d 0 c
+      where
+        x' = if m1 == 1 then x else fromJust ((tape c) !! x)
+        y' = if m2 == 1 then y else fromJust ((tape c) !! y)
+    icOp' 8 ((Just x):(Just y):(Just d):_) (m1:m2:_) c  = icJump 4 $
+                                                            if x' == y'
+                                                              then icSetTapeAt d 1 c
+                                                              else icSetTapeAt d 0 c
+      where
+        x' = if m1 == 1 then x else fromJust ((tape c) !! x)
+        y' = if m2 == 1 then y else fromJust ((tape c) !! y)
+
+    icOp' n _ _ c                                       = error $ "Unknown opcode: " ++ show n ++ "\n"
+                                                          ++ show c
+
+icJump :: Int -> IntComp -> IntComp
+icJump n c = c {pc = n + pc c}
 
 icSetTapeAt :: Int -> Int -> IntComp -> IntComp
 icSetTapeAt n val c = c {tape = t'}
@@ -116,23 +147,23 @@ icSetTapeAt n val c = c {tape = t'}
     t' = setAtIndex n (Just val) $ tape c
 
 icRun :: IntComp -> IntComp
-icRun c = icRun' 0 c
-  where
-    icRun' 0 c = c
-    icRun' n c  | icHalted c = c
-                | otherwise = icRun' (n-1) $ icStep c
--- icRun c | icHalted c = c
---         | otherwise = icRun $ icStep c
+icRun c | icHalted c = c
+        | otherwise = icRun $ icStep c
+-- icRun c = icRun' 2 c
+--   where
+--     icRun' 0 c = c
+--     icRun' n c  | icHalted c = c
+--                 | otherwise = icRun' (n-1) $ icStep c
 
--- takes an opcode, gives a function to update the PC 
-icOpJumps :: Int -> Int -> Int
-icOpJumps = icOpJumps' . flip mod 100
-  where 
-    icOpJumps' 1 = (+4)
-    icOpJumps' 2 = (+4)
-    icOpJumps' 3 = (+2)
-    icOpJumps' 4 = (+2)
-    icOpJumps' n = error $ "Unknown jump for opcode " ++ show n
+-- -- takes an opcode, gives a function to update the PC 
+-- icOpJumps :: Int -> Int -> Int
+-- icOpJumps = icOpJumps' . flip mod 100
+--   where 
+--     icOpJumps' 1 = (+4)
+--     icOpJumps' 2 = (+4)
+--     icOpJumps' 3 = (+2)
+--     icOpJumps' 4 = (+2)
+--     icOpJumps' n = error $ "Unknown jump for opcode " ++ show n
 
 
 
