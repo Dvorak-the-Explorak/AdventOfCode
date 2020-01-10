@@ -19,13 +19,14 @@ data IntComp = IntComp {
 icGetTape c = tape c
 icGetPC c = pc c 
 icGetInputs c = inputs c
-icGetOutputs c = outputs c
+icGetOutputs c = reverse $ drop 2 $ reverse $ outputs c
+icGetSteps c = last $ outputs c
 
 
 instance Show IntComp where
-  show (IntComp t pc i o) =    "tape: " ++ (show $ highlight pc t') ++ "\n"
+  show c@(IntComp t pc i o) =    "tape after "++ (show $ icGetSteps c) ++" steps:\n" ++ (show $ highlight pc t') ++ "\n"
                             ++ "in:   " ++ (show i) ++ "\n" 
-                            ++ "out:  "++ (show $ reverse o)
+                            ++ "out:  "++ (show $ icGetOutputs c)
     where
       t' = map prettyMaybe relevantTape
       relevantTape = pre ++ takeWhile isJust suf
@@ -73,7 +74,7 @@ justPrefix :: [Maybe Int] -> [Int]
 justPrefix = map fromJust . takeWhile isJust
 
 icBoot :: [Int] -> [Int] -> IntComp
-icBoot t inputs = IntComp ((map Just t) ++ repeat Nothing) 0 inputs []
+icBoot t inputs = IntComp ((map Just t) ++ repeat Nothing) 0 inputs [0,0]
 
 icHalted :: IntComp -> Bool
 icHalted c = case tape c !! pc c of
@@ -82,7 +83,7 @@ icHalted c = case tape c !! pc c of
   _ -> False
 
 icStep :: IntComp -> IntComp
-icStep c@(IntComp tape pc ins outs) = icOp opcode args modes c
+icStep c@(IntComp tape pc ins outs) = addStep $ icOp opcode args modes c
   where
     opcode :: Int
     opcode  | isJust x = fromJust x
@@ -91,6 +92,8 @@ icStep c@(IntComp tape pc ins outs) = icOp opcode args modes c
         x = (tape !! pc)
     args = drop (pc+1) tape
     modes = icModes opcode
+    addStep ic = ic {outputs = init (outputs ic) ++ [1 + (last $ outputs ic)]}
+      where
 
 -- #TODO incorporate the Maybe stuff better
 icOp :: Int -> [Maybe Int] -> [Int] -> IntComp -> IntComp
@@ -109,13 +112,13 @@ icOp = icOp' . (flip mod 100)
       where
         val' = if m == 1 then val else fromJust ((tape c) !! val)
     icOp' 5 ((Just x):(Just y):_) (m1:m2:_) c           = if x' > 0 
-                                                            then c { pc = y} 
+                                                            then c { pc = y'} 
                                                             else icJump 3 c
       where
         x' = if m1 == 1 then x else fromJust ((tape c) !! x)
         y' = if m2 == 1 then y else fromJust ((tape c) !! y)
     icOp' 6 ((Just x):(Just y):_) (m1:m2:_) c           = if x' == 0 
-                                                            then c { pc = y} 
+                                                            then c { pc = y'} 
                                                             else icJump 3 c
       where
         x' = if m1 == 1 then x else fromJust ((tape c) !! x)
@@ -154,18 +157,6 @@ icRun c | icHalted c = c
 --     icRun' 0 c = c
 --     icRun' n c  | icHalted c = c
 --                 | otherwise = icRun' (n-1) $ icStep c
-
--- -- takes an opcode, gives a function to update the PC 
--- icOpJumps :: Int -> Int -> Int
--- icOpJumps = icOpJumps' . flip mod 100
---   where 
---     icOpJumps' 1 = (+4)
---     icOpJumps' 2 = (+4)
---     icOpJumps' 3 = (+2)
---     icOpJumps' 4 = (+2)
---     icOpJumps' n = error $ "Unknown jump for opcode " ++ show n
-
-
 
 
 
