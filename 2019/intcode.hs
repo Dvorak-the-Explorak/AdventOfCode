@@ -1,6 +1,9 @@
 {-# LANGUAGE DeriveFunctor, GADTs #-}
+import Data.Maybe
 
-type Tape = [Int]
+
+
+type Tape = [Maybe Int]
 
 data IntComp = IntComp {
   tape :: Tape,
@@ -10,69 +13,82 @@ data IntComp = IntComp {
 }
 
 instance Show IntComp where
-  show (IntComp t pc i o) = (show pc) ++ (show $ take n t) ++ "\n"
-                            ++ "i" ++ (show i) ++ "o"++ (show o)
+  show (IntComp t pc i o) =    "tape: " ++ (show $ highlight pc t') ++ "\n"
+                            ++ "in:   " ++ (show i) ++ "\n" 
+                            ++ "out:  "++ (show $ reverse o)
     where
-      n = max pc $ (+1) $ findEnd 0 0 t
-      -- look for 10 '99's in a row
-      findEnd start 100 _xs = start
-      findEnd start i (99:xs) = findEnd start (i+1) xs
-      findEnd start i (_:xs) = findEnd (start+i+1) 0 xs
+      t' = map prettyMaybe relevantTape
+      relevantTape = pre ++ takeWhile isJust suf
+      (pre,suf) = splitAt (pc+1) t
 
 
--- class for highlighting element of a list
+-- class for modifying the show method of an existing type
 data Lit a = Lit (String -> String) a
 
 instance Show a => Show (Lit a) where
   show (Lit f x) = f $ show x
 
-
+prettyMaybe :: Show a => Maybe a -> Lit (Maybe a)
+prettyMaybe x | isJust x = Lit (drop 5) x
+              | otherwise = Lit (\_ -> "?") x
 
 
 highlight :: Show a => Int -> [a] -> [Lit a]
-highlight n xs = pre' ++ [target'] ++ suff'
+highlight n xs = pre' ++ [target'] ++ suf'
   where
-    (pre,target:suff) = splitAt n xs
+    (pre,target:suf) = splitAt n xs
     pre' = map (Lit id) pre
-    suff' = map (Lit id) suff
-    target' = Lit (\s -> "_"++s++"_") target
-
-
-
-
+    suf' = map (Lit id) suf
+    target' = Lit (\s -> "<"++s++">") target
 
 main = interact $
     show . run2 . (map read) . words
 
 
 run1 :: [Int] -> [Int]
-run1 = take 10 . tape . icRun . flip icBoot []
+run1 = justPrefix . tape . icRun . flip icBoot []
 
 run2 :: [Int] -> IntComp
 run2 = icRun . flip icBoot []
 
 
 
+takeWhileAtLeast :: (a -> Bool) -> Int -> [a] -> [a]
+takeWhileAtLeast pred n xs = pre ++ takeWhile pred suf
+  where
+    (pre,suf) = splitAt n xs
 
 
-icBoot :: Tape -> [Int] -> IntComp
-icBoot t inputs = IntComp (t ++ repeat 99) 0 inputs []
+justPrefix :: [Maybe Int] -> [Int]
+justPrefix = map fromJust . takeWhile isJust
+
+icBoot :: [Int] -> [Int] -> IntComp
+icBoot t inputs = IntComp ((map Just t) ++ repeat Nothing) 0 inputs []
 
 
 icHalted :: IntComp -> Bool
-icHalted c = tape c !! pc c == 99
+icHalted c = case tape c !! pc c of
+  Just 99 -> True
+  Nothing -> True
+  _ -> False
 
 icStep :: IntComp -> IntComp
-icStep c@(IntComp tape pc ins outs) = jumpPc $ icOp opcode c args
+icStep c@(IntComp tape pc ins outs) = jumpPc $ icOp opcode c $ justPrefix args
   where
     opcode :: Int
-    opcode = tape !! pc
+    opcode  | isJust x = fromJust x
+            | otherwise = error $ "Null opcode:\n" ++ show c
+      where 
+        x = (tape !! pc)
     jumpPc (IntComp t pc i o) = IntComp t pc' i o
     pc' = icOpJumps opcode pc
     args = readArgs modes $ pc+1
     modes = icModes opcode
     -- local function to closure 'tape' in
-    readArgs (0:ms) i = (tape !! (tape !! i)):(readArgs ms (i+1)) -- relative
+    readArgs (0:ms) i = (tape !! curr):(readArgs ms (i+1)) -- relative
+      where
+        curr  | isJust (tape !! i)  = fromJust (tape !! i)
+              | otherwise           = error $ "Null pointer dereference in relative argument:\n" ++ show c
     readArgs (1:ms) i = (tape !! i):(readArgs ms (i+1)) -- direct
 
 icOp :: Int -> IntComp -> [Int] -> IntComp
@@ -84,7 +100,7 @@ icOp = icOp' . (flip mod 100)
     icOp' 4 = \(IntComp t pc i o) (val:_) -> IntComp t pc i (val:o)
 
 icSetTapeAt :: Int -> Int -> IntComp -> IntComp
-icSetTapeAt n val (IntComp t pc i o) = IntComp (setAtIndex n val t) pc i o
+icSetTapeAt n val (IntComp t pc i o) = IntComp (setAtIndex n (Just val) t) pc i o
 
 icRun :: IntComp -> IntComp
 icRun c | icHalted c = c
@@ -92,6 +108,10 @@ icRun c | icHalted c = c
 
 -- takes an opcode, gives a function to update the PC 
 icOpJumps :: Int -> Int -> Int
+icOpJumps 1 = (+4)
+icOpJumps 2 = (+4)
+icOpJumps 3 = (+2)
+icOpJumps 4 = (+2)
 icOpJumps _op = (+4)
 
 
@@ -107,6 +127,6 @@ icModes x = revDigits (x `div` 100)
 
 -- `setAtIndex xs i val` sets xs[i]=val
 setAtIndex :: Int -> a -> [a] -> [a]
-setAtIndex n val xs = pre ++ [val] ++ suff
+setAtIndex n val xs = pre ++ [val] ++ suf
   where
-    (pre,_:suff) = splitAt n xs
+    (pre,_:suf) = splitAt n xs
