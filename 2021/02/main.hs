@@ -32,18 +32,9 @@ instruction = do
   try up <|> try down <|> try forward
 
 
-up = do
-  string "up "
-  Up <$> integer
-
-down = do
-  string "down "
-  Down <$> integer
-
-forward = do
-  string "forward "
-  Forward <$> integer
-
+up = string "up " >> Up <$> integer
+down = string "down " >> Down <$> integer
+forward = string "forward " >> Forward <$> integer
 
 integer = read <$> many1 digit 
 
