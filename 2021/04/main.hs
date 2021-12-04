@@ -6,6 +6,9 @@ import Data.List.Extra (sumOn')
 data Square = Unmarked Int | Marked Int
 type Board = [[Square]]
 
+
+
+
 instance Show Square where
   show (Unmarked n) = " " ++ show n
   show (Marked n) = "_" ++ show n

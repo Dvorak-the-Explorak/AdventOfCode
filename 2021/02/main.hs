@@ -73,6 +73,13 @@ followAll xs = (fpos,fdepth)
 
 
 
+-- run the operation on each of a list of inputs
+-- eg seqState op [a,b,c,d,...] = do
+                -- op a
+                -- op b
+                -- op c
+                -- op d
+                -- ...
 seqState :: (a -> State b ()) -> ([a] -> State b ())
 seqState _ [] = return ()
 seqState op (x:xs) = op x >> seqState op xs
