@@ -29,7 +29,7 @@ instructions = many instruction
 
 instruction = do
   many endOfLine
-  up <|> down <|> forward
+  try up <|> try down <|> try forward
 
 
 up = do
