@@ -1,6 +1,7 @@
 import Text.ParserCombinators.Parsec hiding (State)
 import Text.Parsec.Char
 import Data.List (transpose, foldl')
+import Data.List.Extra (sumOn')
 
 data Square = Unmarked Int | Marked Int
 type Board = [[Square]]
@@ -33,17 +34,18 @@ main = do
       print $ lastCall * (sumUnmarked winner)
 
 
-
+-- Second argument includes the last call that was already made (janky hack)
 firstWinner :: [Board] -> [Int] -> (Board,Int)
-firstWinner boards calls  | (not . null) $ filter finished boards = (head $ filter finished boards, head calls)
-                          | otherwise = firstWinner (map (mark $ head $ tail calls) boards) (tail calls)
+firstWinner boards (lastCall:calls) | any finished boards = (head $ filter finished boards, lastCall)
+                                    | otherwise = firstWinner (map (mark $ head calls) boards) calls
 
+
+-- Second argument includes the last call that was already made (janky hack)
 lastWinner :: [Board] -> [Int] -> (Board,Int)
-lastWinner [board] (call:calls) | finished board = (board,call)
-                                | otherwise = lastWinner [(mark $ head calls) board] calls
-lastWinner boards calls = lastWinner (filter (not . finished) $ map (mark $ head $ tail calls) boards) (tail calls)
+lastWinner [board] (lastCall:calls) | finished board = (board,lastCall)
+                                    | otherwise = lastWinner [(mark $ head calls) board] calls
+lastWinner boards (_:calls) = lastWinner (filter unfinished $ map (mark $ head calls) boards) calls
 
-isMarked :: Square -> Bool
 isMarked (Marked _) = True
 isMarked _ = False
 
@@ -56,11 +58,15 @@ mark n b = map (map markSquare) b
 finished :: Board -> Bool
 finished b = any (all isMarked) b || (any (all isMarked) $ transpose b)
 
+unfinished :: Board -> Bool
+unfinished = not . finished
+
+value :: Square -> Int
+value (Marked _) = 0
+value (Unmarked n) = n
+
 sumUnmarked :: Board -> Int
-sumUnmarked b = sum $ map (foldl' addUnmarked 0) b
-  where 
-    addUnmarked n (Marked _) = n
-    addUnmarked n (Unmarked m) = n+m
+sumUnmarked = sum . map (sumOn' value)
 
 
 -- ===============================================
