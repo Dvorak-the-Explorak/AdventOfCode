@@ -1,28 +1,31 @@
-import Control.Monad.State
+import Data.List
 
 main = interact $
-  show . solve . (map read) . lines
+  show . solve . tripleSums . (map read) . lines
 
+-- part 1
+-- main = interact $
+--   show . solve . (map read) . lines
 
--- solve :: [Int] -> Int
--- solve [] = 0
--- solve (x:[]) = 0
--- solve (x:y:xs)  | y > x = 1 + solve (y:xs)
---                 | otherwise = solve (y:xs) 
 
 solve :: [Int] -> Int
-solve xs = snd $ execState (solve1 xs) (Nothing, 0)
+solve [] = 0
+solve xs = snd $ foldl' tallyIncreases (head xs, 0) (tail xs)
+  where
+    tallyIncreases (prev,count) x = (x, if x > prev then count+1 else count)
+
+tripleSums :: [Int] -> [Int]
+tripleSums xs = zipWith3 add3 xs (tail xs) (drop 2 xs)
+  where 
+    add3 a b c = a + b + c
 
 
-solve1 :: [Int] -> State (Maybe Int, Int) ()
-solve1 [] = return ()
-solve1 (x:xs) = process x >> solve1 xs 
 
-process :: Int -> State (Maybe Int, Int) ()
-process x = do
-  (prev,count)  <- get
-  case prev of
-    Nothing -> put (Just x,count)
-    (Just y) -> if x > y 
-                  then put (Just x, count+1)
-                  else put (Just x, count)
+-- tripleSums :: [Int] -> [Int]
+-- tripleSums = map sum . triples
+
+-- triples :: [a] -> [[a]]
+-- triples = takeWhile ((==3) . length) . tripleGen
+--   where
+--     tripleGen [] = []
+--     tripleGen xs = take 3 xs : tripleGen (tail xs)

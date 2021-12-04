@@ -24,12 +24,18 @@ process x = do
 
 
 
-
 tripleSums :: [Int] -> [Int]
-tripleSums = map sum . triples
+tripleSums xs = zipWith3 add3 xs (tail xs) (drop 2 xs)
+  where 
+    add3 a b c = a + b + c
 
-triples :: [a] -> [[a]]
-triples = takeWhile ((==3) . length) . tripleGen
-  where
-    tripleGen [] = []
-    tripleGen xs = take 3 xs : tripleGen (tail xs)
+
+
+-- tripleSums :: [Int] -> [Int]
+-- tripleSums = map sum . triples
+
+-- triples :: [a] -> [[a]]
+-- triples = takeWhile ((==3) . length) . tripleGen
+--   where
+--     tripleGen [] = []
+--     tripleGen xs = take 3 xs : tripleGen (tail xs)
