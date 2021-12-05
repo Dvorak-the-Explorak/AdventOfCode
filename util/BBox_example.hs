@@ -3,9 +3,7 @@ import Control.Monad.State
 import BBox
 
 main = do
-  print $ getBBox [(Point 0 0), (Point 10 15)]
-
-
+  print $ getBBox [Line (Point 0 0) (Point 10 15), Line (Point (-5) 7) (Point 3 2)]
 
 data Point = Point {
   x :: Int,
@@ -19,13 +17,11 @@ data Line = Line {
 
 
 instance BoxBound Point where
-  bbox (Point x y) = makeBBox (x,y)
-
-  -- This causes errors
-  -- bbox (Point x y) = put Nothing
+  bbox (Point x y) = boxedPoint (x,y)
 
 instance BoxBound Line where
-  bbox (Line start end) = bbox start >> bbox end
+  bbox (Line start end) = bbox [start, end]
+  -- bbox (Line start end) = put Nothing
 
 
 
