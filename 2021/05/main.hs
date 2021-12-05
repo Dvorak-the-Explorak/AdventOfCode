@@ -1,14 +1,10 @@
 import Text.ParserCombinators.Parsec hiding (State)
 import Text.Parsec.Char
-import Control.Monad.State
 import Data.List (foldl')
 import Data.Hashable (Hashable)
 import qualified Data.HashMap.Strict as Map
 
-
 part1 = False
-
-
 
 
 main = do
@@ -16,20 +12,10 @@ main = do
   case result of
     (Left err) -> print err
     (Right vlines) -> do
-      putStrLn "Parsed sucessfully"
-
-      -- if any (not . validLine) vlines
-      --   then putStrLn "INVALID LINES:" >> mapM print (filter (not.validLine) vlines) >> return ()
-      --   else putStrLn "Lines all valid."
-
-      let orthoLines = if part1 
-                          then filter (isHorizontal ||| isVertical) vlines
-                          else vlines
-
-      let points = mconcat $ map linePoints orthoLines
+      let orthoLines = filter (isHorizontal ||| isVertical) vlines
+      let points = mconcat $ map linePoints $ if part1 then orthoLines else vlines
       let counts = getCounts points
       print $ length $ filter (>=2) $ Map.elems counts
-
 
 
 
@@ -37,8 +23,6 @@ getCounts :: (Eq a, Hashable a) => [a] -> Map.HashMap a Int
 getCounts = foldl' (\ acc x -> tally x acc) $ Map.fromList []
   where
     tally x = Map.insertWith (+) x 1
-
-
 
 
 
