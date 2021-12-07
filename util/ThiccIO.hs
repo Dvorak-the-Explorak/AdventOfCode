@@ -87,15 +87,19 @@ tallString :: String -> ThiccLine
 tallString x = ThiccLine $ map (:[]) x
 
 putTall = putThicc . tallString
+putTallLn x = do 
+  putThicc $ tallString x
+  liftIO $ putStrLn ""
+-- putTallLn = flip (>>) (liftIO $ putStrLn "") . (putThicc . tallString)
 
 main = runThicc $ do
-  liftIO $ putStrLn "<thiccprinting>"
+  -- liftIO $ putStrLn "<thiccprinting>"
   putTall "Hello"  
   putTall " "
-  putTall "Hi"
+  putTallLn "Hi"
   putTall ""
   putTall "This is a long string"
-  liftIO $ putStrLn "</thiccprinting>"
+  -- liftIO $ putStrLn "</thiccprinting>"
 
 ttrace x = trace (show x) x
 ttrace' tag x = trace (tag ++ show x) x
