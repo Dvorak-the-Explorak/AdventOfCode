@@ -2,6 +2,12 @@ import Control.Monad.IO.Class
 import Control.Monad (liftM, ap)
 import Debug.Trace
 
+-- #TODO add a ThiccShow class rather than having an arbitrary type (Show s, Monoid s) => s
+--    (ie) ThiccShow a where thiccShow :: a -> [String]
+
+
+
+
 newtype ThiccIO s a = ThiccIO (s -> IO (s,a))
 
 -- Sequence the two operations together
