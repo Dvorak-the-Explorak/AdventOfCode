@@ -20,7 +20,6 @@ instance Applicative (ThiccIO s) where
   pure = return
   (<*>) = ap
 
-
 -- IO operations flush the buffer
 instance (Show s, Monoid s) => MonadIO (ThiccIO s) where
   liftIO op = ThiccIO $ \buff -> do
@@ -35,8 +34,8 @@ runThicc (ThiccIO f) = do
   putStr $ show buff
   return x
 
-thiccPutStr :: Thickness -> ThiccIO Thickness ()
-thiccPutStr x = ThiccIO $ \buff -> return (buff <> x, ())
+putThicc :: (Show s, Monoid s) => s -> ThiccIO s ()
+putThicc x = ThiccIO $ \buff -> return (buff <> x, ())
 
 
 newtype Thickness = Thickness String
@@ -48,11 +47,49 @@ instance Monoid Thickness where
 instance Show Thickness where
   show (Thickness x) = x
 
+
+newtype ThiccLine = ThiccLine [String]
+instance Semigroup ThiccLine where
+  ThiccLine x <> ThiccLine y = ThiccLine $ combineLines x y
+instance Monoid ThiccLine where
+  mempty = ThiccLine []
+  mappend = (<>)
+instance Show ThiccLine where
+  show (ThiccLine x) = mconcat $ map (++"\n") x
+
+
+-- zip 2 lists of strings together, 
+--    padding shorter lists with spaces
+--    padding shorter entries in the first arg with spaces,
+
+combineLines :: [String] -> [String] -> [String]
+combineLines s1 s2 = zipWith (++) s1' s2'
+  where
+    width = if null s1 then 0 else maximum $ map length $ s1
+    height = max (length s1) (length s2)
+    s1' = map (padRight width) $ padDown height s1
+    s2' = padDown height s2
+
+    padRight n [] = take n $ repeat ' '
+    padRight n (x:xs) = x : padRight (n-1) xs
+
+    padDown n [] = take n $ repeat ""
+    padDown n (x:xs) = x : padDown (n-1) xs
+
+
+tallString :: String -> ThiccLine
+tallString x = ThiccLine $ map (:[]) x
+
+putTall = putThicc . tallString
+
 main = runThicc $ do
-  liftIO $ putStr "<"
-  thiccPutStr $ Thickness "Hello"
-  liftIO $ putStrLn ">"
-
-
+  liftIO $ putStrLn "<thiccprinting>"
+  putTall "Hello"  
+  putTall " "
+  putTall "Hi"
+  putTall ""
+  putTall "This is a long string"
+  liftIO $ putStrLn "</thiccprinting>"
 
 ttrace x = trace (show x) x
+ttrace' tag x = trace (tag ++ show x) x
