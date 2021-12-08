@@ -5,9 +5,7 @@ import Debug.Trace
 -- #TODO add a ThiccShow class rather than having an arbitrary type (Show s, Monoid s) => s
 --    (ie) ThiccShow a where thiccShow :: a -> [String]
 
-
-
-
+-- ThiccIO is basically StateT s IO a (but with the tuple flipped)
 newtype ThiccIO s a = ThiccIO (s -> IO (s,a))
 
 -- Sequence the two operations together
@@ -43,31 +41,22 @@ runThicc (ThiccIO f) = do
 putThicc :: (Show s, Monoid s) => s -> ThiccIO s ()
 putThicc x = ThiccIO $ \buff -> return (buff <> x, ())
 
-
-newtype Thickness = Thickness String
-instance Semigroup Thickness where
-  Thickness x <> Thickness y = Thickness $ x++y
-instance Monoid Thickness where
-  mempty = Thickness ""
+newtype ThiccString = ThiccString [String]
+instance Semigroup ThiccString where
+  ThiccString x <> ThiccString y = ThiccString $ combineLines x y
+instance Monoid ThiccString where
+  mempty = ThiccString []
   mappend = (<>)
-instance Show Thickness where
-  show (Thickness x) = x
+instance Show ThiccString where
+  show (ThiccString x) = mconcat $ map (++"\n") x
 
-
-newtype ThiccLine = ThiccLine [String]
-instance Semigroup ThiccLine where
-  ThiccLine x <> ThiccLine y = ThiccLine $ combineLines x y
-instance Monoid ThiccLine where
-  mempty = ThiccLine []
-  mappend = (<>)
-instance Show ThiccLine where
-  show (ThiccLine x) = mconcat $ map (++"\n") x
+class ThiccShow a where
+  thiccShow :: a -> ThiccString
 
 
 -- zip 2 lists of strings together, 
---    padding shorter lists with spaces
---    padding shorter entries in the first arg with spaces,
-
+--    padding shorter lists with blank lines
+--    padding shorter lines with spaces (including any new blank lines),
 combineLines :: [String] -> [String] -> [String]
 combineLines s1 s2 = zipWith (++) s1' s2'
   where
@@ -76,21 +65,33 @@ combineLines s1 s2 = zipWith (++) s1' s2'
     s1' = map (padRight width) $ padDown height s1
     s2' = padDown height s2
 
-    padRight n [] = take n $ repeat ' '
-    padRight n (x:xs) = x : padRight (n-1) xs
+    padRight n xs = rPad n ' ' xs
+    padDown n xs = rPad n "" xs
 
-    padDown n [] = take n $ repeat ""
-    padDown n (x:xs) = x : padDown (n-1) xs
+rPad :: Int -> a -> [a] -> [a]
+rPad n fill xs = xs ++ (take (n - length xs) $ repeat fill)
 
+tallString :: String -> ThiccString
+tallString x = ThiccString $ map (:[]) x
 
-tallString :: String -> ThiccLine
-tallString x = ThiccLine $ map (:[]) x
-
+-- | Prints a string vertically
+putTall :: String -> ThiccIO ThiccString ()
 putTall = putThicc . tallString
+
+-- | Prints a string vertically and ends the Thicc line
+putTallLn :: String -> ThiccIO ThiccString () 
 putTallLn x = do 
   putThicc $ tallString x
   liftIO $ putStrLn ""
 -- putTallLn = flip (>>) (liftIO $ putStrLn "") . (putThicc . tallString)
+
+printTall :: Show a => a -> ThiccIO ThiccString ()
+printTall = putTallLn . show
+
+printThicc :: ThiccShow a => a -> ThiccIO ThiccString ()
+printThicc x = do 
+  putThicc $ thiccShow x
+  liftIO $ putStrLn ""
 
 main = runThicc $ do
   -- liftIO $ putStrLn "<thiccprinting>"
