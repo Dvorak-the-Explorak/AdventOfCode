@@ -38,8 +38,6 @@ runThicc (ThiccIO f) = do
   putStr $ show buff
   return x
 
-putThicc :: ThiccString -> ThiccIO ()
-putThicc x = ThiccIO $ \buff -> return (buff <> x, ())
 
 newtype ThiccString = ThiccString [String]
 instance Semigroup ThiccString where
@@ -50,6 +48,7 @@ instance Monoid ThiccString where
 instance Show ThiccString where
   show (ThiccString x) = mconcat $ map (++"\n") x
 
+-- default implementation could be `lines . show`
 class ThiccShow a where
   thiccShow :: a -> ThiccString
 
@@ -74,24 +73,28 @@ rPad n fill xs = xs ++ (take (n - length xs) $ repeat fill)
 tallString :: String -> ThiccString
 tallString x = ThiccString $ map (:[]) x
 
+flushThicc :: ThiccIO ()
+flushThicc = liftIO $ return ()
+
+putThicc :: ThiccString -> ThiccIO ()
+putThicc x = ThiccIO $ \buff -> return (buff <> x, ())
+putThiccLn x = putThicc x >> flushThicc
+
 -- | Prints a string vertically
 putTall :: String -> ThiccIO ()
 putTall = putThicc . tallString
 
--- | Prints a string vertically and ends the Thicc line
-putTallLn :: String -> ThiccIO () 
-putTallLn x = do 
-  putThicc $ tallString x
-  liftIO $ putStrLn ""
--- putTallLn = flip (>>) (liftIO $ putStrLn "") . (putThicc . tallString)
+-- | Prints a string vertically, ends the thick line
+putTallLn :: String -> ThiccIO ()
+putTallLn x = putThicc (tallString x) >> flushThicc
 
+-- | Prints a Show type vertically
 printTall :: Show a => a -> ThiccIO ()
-printTall = putTallLn . show
+printTall x = putTallLn (show x) >> flushThicc
 
+-- | Prints a ThiccShow type
 printThicc :: ThiccShow a => a -> ThiccIO ()
-printThicc x = do 
-  putThicc $ thiccShow x
-  liftIO $ putStrLn ""
+printThicc x = putThicc (thiccShow x) >> flushThicc
 
 main = runThicc $ do
   -- liftIO $ putStrLn "<thiccprinting>"
