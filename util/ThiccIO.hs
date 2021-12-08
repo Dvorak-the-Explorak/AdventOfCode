@@ -6,10 +6,10 @@ import Debug.Trace
 --    (ie) ThiccShow a where thiccShow :: a -> [String]
 
 -- ThiccIO is basically StateT s IO a (but with the tuple flipped)
-newtype ThiccIO s a = ThiccIO (s -> IO (s,a))
+newtype ThiccIO a = ThiccIO (ThiccString -> IO (ThiccString,a))
 
 -- Sequence the two operations together
-instance Monad (ThiccIO s) where
+instance Monad ThiccIO where
   return x = ThiccIO $ \buff -> return (buff, x)
   ThiccIO f1 >>= getNext = 
     ThiccIO $ \buff1 -> do
@@ -17,28 +17,28 @@ instance Monad (ThiccIO s) where
                 let ThiccIO f2 = getNext x1
                 f2 buff2
 
-instance Functor (ThiccIO s) where
+instance Functor ThiccIO where
   fmap = liftM
 
-instance Applicative (ThiccIO s) where
+instance Applicative ThiccIO where
   pure = return
   (<*>) = ap
 
 -- IO operations flush the buffer
-instance (Show s, Monoid s) => MonadIO (ThiccIO s) where
+instance MonadIO ThiccIO where
   liftIO op = ThiccIO $ \buff -> do
                             putStr $ show buff
                             x <- op
                             return (mempty, x)
 
 -- running it as IO flushes the buffer at the end
-runThicc :: (Show s, Monoid s) => ThiccIO s a -> IO a
+runThicc :: ThiccIO a -> IO a
 runThicc (ThiccIO f) = do 
   (buff, x) <- f mempty
   putStr $ show buff
   return x
 
-putThicc :: (Show s, Monoid s) => s -> ThiccIO s ()
+putThicc :: ThiccString -> ThiccIO ()
 putThicc x = ThiccIO $ \buff -> return (buff <> x, ())
 
 newtype ThiccString = ThiccString [String]
@@ -75,20 +75,20 @@ tallString :: String -> ThiccString
 tallString x = ThiccString $ map (:[]) x
 
 -- | Prints a string vertically
-putTall :: String -> ThiccIO ThiccString ()
+putTall :: String -> ThiccIO ()
 putTall = putThicc . tallString
 
 -- | Prints a string vertically and ends the Thicc line
-putTallLn :: String -> ThiccIO ThiccString () 
+putTallLn :: String -> ThiccIO () 
 putTallLn x = do 
   putThicc $ tallString x
   liftIO $ putStrLn ""
 -- putTallLn = flip (>>) (liftIO $ putStrLn "") . (putThicc . tallString)
 
-printTall :: Show a => a -> ThiccIO ThiccString ()
+printTall :: Show a => a -> ThiccIO ()
 printTall = putTallLn . show
 
-printThicc :: ThiccShow a => a -> ThiccIO ThiccString ()
+printThicc :: ThiccShow a => a -> ThiccIO ()
 printThicc x = do 
   putThicc $ thiccShow x
   liftIO $ putStrLn ""
