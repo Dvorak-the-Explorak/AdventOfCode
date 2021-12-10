@@ -1,9 +1,23 @@
 import Data.Char (digitToInt)
-import Data.List (foldl')
-import Control.Monad (liftM2)
+import Data.List (foldl', sortOn, sort)
+import Control.Monad (liftM2, when)
 import Control.Applicative (liftA2)
+import qualified  Data.HashSet as Set
+import qualified Data.HashMap.Strict as Map
+import Data.Hashable (Hashable)
 
 import Debug.Trace
+
+part1 = False
+
+main = interact $
+  show . solve . Grid . (map (map digitToInt)) . lines
+
+data Grid a = Grid {
+  getGrid :: [[a]]
+}
+type Coord = (Int,Int)
+type Kernel a b = (Coord -> Maybe a) -> Coord -> Maybe b
 
 instance Show a => Show (Grid a) where
   show (Grid rows) = show rows
@@ -14,15 +28,6 @@ instance Functor Grid where
 instance Applicative Grid where
   pure x = Grid [[x]]
   (<*>) (Grid f) (Grid x) = Grid $ zipWith (zipWith ($)) f x
-
-main = interact $
-  show . solve . Grid . (map (map digitToInt)) . lines
-
-data Grid a = Grid {
-  getGrid :: [[a]]
-}
-type Coord = (Int,Int)
-type Kernel a b = (Coord -> Maybe a) -> Coord -> Maybe b
 
 
 
@@ -40,15 +45,27 @@ height (Grid xs) = length xs
 gridSum :: Grid Int -> Int
 gridSum = sum . map sum . getGrid
 
+
+
+
+
+
+
 solve :: Grid Int -> Int
-solve heights = gridSum risk
+solve heights = result
 -- solve heights = trace (show heights) (-1)
   where
-    result = -1
+    result = if part1
+              then gridSum risk
+              else product $ top3
 
+    -- [Maybe Coord]
+    basinBottoms = mconcat $ getGrid $ mapKernel getBasin heights
+    basinCounts = Map.filterWithKey (\ k v -> k /= Nothing) $ getCounts basinBottoms
 
+    top3 = take 3 $ sortOn negate $ Map.elems basinCounts
 
-    -- risk = (+1)
+    -- Grid Int
     risk = liftA2 getRisk heights localMins
 
     getRisk :: Int -> Maybe Bool -> Int
@@ -56,6 +73,13 @@ solve heights = gridSum risk
     getRisk _ _ = 0
 
     localMins = mapKernel (isLocalMin) heights
+
+
+getCounts :: (Eq a, Hashable a) => [a] -> Map.HashMap a Int
+getCounts = foldl' (\ acc x -> tally x acc) $ Map.fromList []
+  where
+    tally x = Map.insertWith (+) x 1
+
 
 up :: Coord -> Coord
 up (row,col) = (row-1,col)
@@ -83,6 +107,30 @@ isLocalMin getval coord = do
   let comparisons = map (fmap (>center) . getval) $ adjacent coord
 
   foldl' (<&&>) (Just True) comparisons
+
+maybeTrue Nothing = False
+maybeTrue _ = True
+
+maybeLessThan _ Nothing = True
+maybeLessThan Nothing _ = False
+maybeLessThan (Just x) (Just y) = x<y
+
+-- not memoised
+getBasin :: Kernel Int Coord
+getBasin getval coord = do
+  center <- getval coord
+  when (center == 9) Nothing
+
+  let lower c1 c2 = if maybeLessThan (getval c1) (getval c2)
+                      then c1 
+                      else c2
+  let lowest = foldl' lower coord $ adjacent coord
+
+  if lowest == coord 
+    then (Just coord)
+    else getBasin getval lowest
+
+
 
 
 
