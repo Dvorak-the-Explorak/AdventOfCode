@@ -4,27 +4,38 @@ import Control.Monad (liftM2)
 
 import Debug.Trace
 
-data Lit a = Lit (String -> String) a
-instance Show a => Show (Lit a) where
-  show (Lit f x) = f (show x)
+instance Show a => Show (Grid a) where
+  show (Grid rows) = show rows
 
-prettyMB :: Maybe Bool -> Lit (Maybe Bool)
-prettyMB Nothing = Lit (const "?") Nothing
-prettyMB (Just True) = Lit (const "1") (Just True)
-prettyMB (Just False) = Lit (const "0") (Just False)
-
+instance Functor Grid where
+  fmap f (Grid rows) = Grid $ map (map f) rows
 
 main = interact $
-  show . solve . (map (map digitToInt)) . lines
+  show . solve . Grid . (map (map digitToInt)) . lines
 
-type Grid a = [[a]]
+data Grid a = Grid {
+  getGrid :: [[a]]
+}
 type Coord = (Int,Int)
 type Kernel a b = (Coord -> Maybe a) -> Coord -> Maybe b
 
 
 
+-- partial 
+getIndex :: Coord -> Grid a -> a
+getIndex (row,col) (Grid x) = (x !! row) !! col
+
+width :: Grid a -> Int
+width (Grid []) = 0
+width (Grid (x:xs)) = length x
+
+height :: Grid a -> Int
+height (Grid xs) = length xs
+
+
+
 solve :: Grid Int -> Int
-solve heights = trace (show $ map (map prettyMB) grid') (-1)
+solve heights = trace (show grid') (-1)
 -- solve heights = trace (show heights) (-1)
   where
     result = -1
@@ -47,9 +58,6 @@ right (row,col) = (row,col+1)
 
 adjacent :: Coord -> [Coord]
 adjacent x = [up x, down x, left x, right x]
-
-gridMap :: (a -> b) -> Grid a -> Grid b
-gridMap = map . map
 
 simpleKernel :: (a -> b) -> Kernel a b
 simpleKernel f = \getVal coord -> f <$> getVal coord
@@ -74,21 +82,21 @@ isLocalMin getval coord = do
 
 
 mapKernel :: Kernel a b -> Grid a -> Grid (Maybe b)
-mapKernel kernel grid = gridMap (kernel getVal) gridCoords
+mapKernel kernel grid = fmap (kernel getVal) gridCoords
   where
-    -- partial function
-    m = length grid
-    n = length $ head grid
+
+    m = height grid
+    n = width grid
 
     getVal (row,col) 
       | row < 0 = Nothing
       | col < 0 = Nothing
       | row >= m = Nothing
       | col >= n = Nothing
-      | otherwise = Just $ (grid !! row) !! col
+      | otherwise = Just $ getIndex (row,col) grid
 
     gridCoords :: Grid (Int,Int)
-    gridCoords = [[(row,col) | col <- [0..n-1]] | row <- [0..m-1]]
+    gridCoords = Grid [[(row,col) | col <- [0..n-1]] | row <- [0..m-1]]
 
 traceWith f x = trace (f x) x
 
