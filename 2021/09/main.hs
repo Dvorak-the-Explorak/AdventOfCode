@@ -1,6 +1,7 @@
 import Data.Char (digitToInt)
 import Data.List (foldl')
 import Control.Monad (liftM2)
+import Control.Applicative (liftA2)
 
 import Debug.Trace
 
@@ -9,6 +10,10 @@ instance Show a => Show (Grid a) where
 
 instance Functor Grid where
   fmap f (Grid rows) = Grid $ map (map f) rows
+
+instance Applicative Grid where
+  pure x = Grid [[x]]
+  (<*>) (Grid f) (Grid x) = Grid $ zipWith (zipWith ($)) f x
 
 main = interact $
   show . solve . Grid . (map (map digitToInt)) . lines
@@ -32,17 +37,25 @@ width (Grid (x:xs)) = length x
 height :: Grid a -> Int
 height (Grid xs) = length xs
 
-
+gridSum :: Grid Int -> Int
+gridSum = sum . map sum . getGrid
 
 solve :: Grid Int -> Int
-solve heights = trace (show grid') (-1)
+solve heights = gridSum risk
 -- solve heights = trace (show heights) (-1)
   where
     result = -1
 
-    risk = (+1)
 
-    grid' = mapKernel (isLocalMin) heights
+
+    -- risk = (+1)
+    risk = liftA2 getRisk heights localMins
+
+    getRisk :: Int -> Maybe Bool -> Int
+    getRisk n (Just True) = n+1
+    getRisk _ _ = 0
+
+    localMins = mapKernel (isLocalMin) heights
 
 up :: Coord -> Coord
 up (row,col) = (row-1,col)
