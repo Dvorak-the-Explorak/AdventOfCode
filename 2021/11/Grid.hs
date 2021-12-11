@@ -1,14 +1,15 @@
-module Grid where
-
--- #TODO can I guarantee that the kernel center is always a valid coord?
---        maybe I can get rid of the maybe      
+module Grid where    
 
 data Grid a = Grid {
   getGrid :: [[a]]
 } deriving (Eq)
 
+-- #TODO make this 2 types: Coord (Int,Int) and ValidCoord (Int,Int)
+--    then we can have getValidCoord :: ValidCoord -> thing
 type Coord = (Int,Int)
-type Kernel a b = (Coord -> Maybe a) -> Coord -> Maybe b
+-- newtype ValidCoord = ValidCood (Int,Int)
+
+type Kernel a b = (Coord -> Maybe a) -> Coord -> b
 
 instance Show a => Show (Grid a) where
   show (Grid rows) = show rows
@@ -26,6 +27,9 @@ instance Applicative Grid where
 getIndex :: Coord -> Grid a -> a
 getIndex (row,col) (Grid x) = (x !! row) !! col
 
+-- partial
+getJust (Just x) = x
+
 width :: Grid a -> Int
 width (Grid []) = 0
 width (Grid (x:xs)) = length x
@@ -35,9 +39,6 @@ height (Grid xs) = length xs
 
 gridSum :: Grid Int -> Int
 gridSum = sum . map sum . getGrid
-
-
-
 
 up :: Coord -> Coord
 up (row,col) = (row-1,col)
@@ -57,17 +58,16 @@ orthoAdjacent x = map ($x) [up, down, left, right]
 allAdjacent x = map ($x) [up.left, up, up.right, left, right, down.left, down, down.right] 
 
 simpleKernel :: (a -> b) -> Kernel a b
-simpleKernel f = \getVal coord -> f <$> getVal coord
+simpleKernel f = \getVal coord -> f $ getJust $ getVal coord
 -- simpleKernel f = fmap f <$>
 
 
 
 -- run the kernel on a grid
 --  #TODO only call (kernel _ x) on valid coordinates x (type level?)
-mapKernel :: Kernel a b -> Grid a -> Grid (Maybe b)
+mapKernel :: Kernel a b -> Grid a -> Grid b
 mapKernel kernel grid = fmap (kernel getVal) gridCoords
   where
-
     m = height grid
     n = width grid
 

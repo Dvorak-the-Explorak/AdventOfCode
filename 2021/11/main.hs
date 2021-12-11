@@ -3,27 +3,46 @@ import Data.Maybe (catMaybes)
 
 import Grid
 
+import Debug.Trace
+ttrace x = trace (show x) x
+
 main = interact $
   show . solve . Grid . map (map digitToInt) . lines
 
 solve :: Grid Int -> Int
-solve x = -1
+solve grid = result 
+  where
+    steps = iterate step grid
+    result = sum $ map countFlashes $ take 101 steps
+
+countFlashes :: Grid Int -> Int
+countFlashes = gridSum . (mapKernel $ simpleKernel (\x -> if x==0 then 1 else 0))
 
 step :: Grid Int -> Grid Int
 step grid = result
   where
-    result = head $ filter (/= grid) $ iterate (mapKernel flash) $ mapKernel increment grid
+    result = fixed (mapKernel flash) $ mapKernel increment grid
 
+-- find fixed point
+fixed :: Eq a => (a -> a) -> a -> a
+fixed f x = let fx = f x in 
+    if fx == x 
+      then x
+      else fixed f fx
 
 increment :: Kernel Int Int
 increment = simpleKernel (+1)
 
 -- #TODO let `Kernel a b` keep track of some global state when mapping
+--        (so it can track when changes happen)
 flash :: Kernel Int Int
-flash getVal coord = do
-  val <- getVal coord
-  let absorbed = length $ filter (>9) $ catMaybes (map getVal $ allAdjacent coord)
-  if val == 0 || val + absorbed > 9
-    then return 0
-    else return val+absorbed
-
+flash getVal coord = result
+  where
+    val = getJust $ getVal coord
+    adj = catMaybes (map getVal $ allAdjacent coord)
+    absorbed = length $ filter (>9) adj
+    -- only flash on this call if it was already >9 (and its energy is absorbed by surrounding squids)
+    -- squids on 0 already 
+    result = if val == 0 || val > 9
+                then 0
+                else val + absorbed
