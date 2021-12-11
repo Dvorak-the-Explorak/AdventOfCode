@@ -1,6 +1,10 @@
+{-# LANGUAGE BangPatterns #-}
+
 import Data.Char (digitToInt)
 import Data.List (foldl', sortOn, sort)
-import Control.Monad (liftM2, when)
+import Data.Maybe
+import Control.Monad (liftM2, when, guard, liftM, (=<<))
+import Control.Monad.Fix 
 import Control.Applicative (liftA2)
 import qualified  Data.HashSet as Set
 import qualified Data.HashMap.Strict as Map
@@ -98,6 +102,7 @@ adjacent x = [up x, down x, left x, right x]
 
 simpleKernel :: (a -> b) -> Kernel a b
 simpleKernel f = \getVal coord -> f <$> getVal coord
+-- simpleKernel f = fmap f <$>
 
 isLocalMin :: Kernel Int Bool
 isLocalMin getval coord = do
@@ -106,42 +111,40 @@ isLocalMin getval coord = do
   -- [Maybe Bool]
   let comparisons = map (fmap (>center) . getval) $ adjacent coord
 
-  foldl' (<&&>) (Just True) comparisons
+  return $ all (/= Just False) comparisons
 
-maybeTrue Nothing = False
-maybeTrue _ = True
 
 maybeLessThan _ Nothing = True
 maybeLessThan Nothing _ = False
 maybeLessThan (Just x) (Just y) = x<y
 
--- not memoised
+-- -- not memoised
 getBasin :: Kernel Int Coord
 getBasin getval coord = do
-  center <- getval coord
-  when (center == 9) Nothing
-
-  let lower c1 c2 = if maybeLessThan (getval c1) (getval c2)
-                      then c1 
-                      else c2
-  let lowest = foldl' lower coord $ adjacent coord
+  lowest <- lowestAdjacent getval coord
 
   if lowest == coord 
     then (Just coord)
     else getBasin getval lowest
 
+lowestAdjacent :: Kernel Int Coord
+lowestAdjacent getval coord = do
+  center <- getval coord
+  guard $ center == 9
 
+  let lower c1 c2 = if maybeLessThan (getval c1) (getval c2)
+                      then c1 
+                      else c2
+  return $ foldl' lower coord $ adjacent coord
 
+countEqual :: Eq a => Kernel a Int
+countEqual getval coord = 
+    equals = filter (== (getval coord)) $ adjacent coord
+  do
+  center <- getval coord
+  filter (==Just center) $ adjacent coord
 
-
-(<&&>) :: Maybe Bool -> Maybe Bool -> Maybe Bool
-(<&&>) (Just False) _ = Just False
-(<&&>) _ (Just False) = Just False
-(<&&>) Nothing Nothing = Nothing
-(<&&>) (Just True) _ = Just True
-(<&&>) _ (Just True) = Just True
-
-
+-- run the kernel on a grid
 mapKernel :: Kernel a b -> Grid a -> Grid (Maybe b)
 mapKernel kernel grid = fmap (kernel getVal) gridCoords
   where
