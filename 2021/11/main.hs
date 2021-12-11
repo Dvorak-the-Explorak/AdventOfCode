@@ -6,14 +6,20 @@ import Grid
 import Debug.Trace
 ttrace x = trace (show x) x
 
+
+
+part1 = False
+
 main = interact $
   show . solve . Grid . map (map digitToInt) . lines
 
 solve :: Grid Int -> Int
-solve grid = result 
+solve grid = if part1 then result1 else result2
   where
     steps = iterate step grid
-    result = sum $ map countFlashes $ take 101 steps
+    result1 = sum $ map countFlashes $ take 101 steps
+    result2 = length $ takeWhile (not . synced) steps
+    synced = (==100) . countFlashes
 
 countFlashes :: Grid Int -> Int
 countFlashes = gridSum . (mapKernel $ simpleKernel (\x -> if x==0 then 1 else 0))
