@@ -1,4 +1,6 @@
-module BBox (BoxBound, getBBox, boxedPoint, bbox) where
+{-# LANGUAGE FlexibleInstances #-}
+
+module BBox (BoxBound, getBBox, bbox) where
 import Control.Monad.State
 
 -- #TODO extend this to multiple dimensions.  
@@ -24,10 +26,8 @@ class BoxBound a where
 instance BoxBound a => BoxBound [a] where
   bbox xs  = BBox $ mapM_ (getOp . bbox) xs
 
--- basic building block, stretch the bounding box to fit a single point
---  I can't just do "instance BoxBound (Int,Int) where..." without using FlexibleInstances
-boxedPoint :: (Int,Int) -> BBox
-boxedPoint (x,y) = BBox $ do
+instance BoxBound (Int,Int) where
+  bbox (x,y) = BBox $ do
     box <- get
     case box of 
       Nothing -> put $ Just (x,x,y,y)

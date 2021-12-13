@@ -17,7 +17,7 @@ data Line = Line {
 
 
 instance BoxBound Point where
-  bbox (Point x y) = boxedPoint (x,y)
+  bbox (Point x y) = bbox (x,y)
 
 instance BoxBound Line where
   bbox (Line start end) = bbox [start, end]

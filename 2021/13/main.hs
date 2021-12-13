@@ -50,7 +50,7 @@ type Set = Set.HashSet
 
 
 instance BoxBound Point where
-  bbox (Point p) =  boxedPoint p
+  bbox (Point p) = bbox p
 
 instance BoxBound (Set Point) where
   bbox points = bbox $ Set.toList points
