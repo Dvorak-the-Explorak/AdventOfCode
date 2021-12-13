@@ -1,4 +1,4 @@
-import Control.Monad.State
+import GHC.Prim
 
 import BBox
 
@@ -20,7 +20,7 @@ instance BoxBound Point where
   bbox (Point x y) = bbox (x,y)
 
 instance BoxBound Line where
-  bbox (Line start end) = bbox [start, end]
+  bbox (Line start end) = start <-> end
   -- bbox (Line start end) = put Nothing
 
 

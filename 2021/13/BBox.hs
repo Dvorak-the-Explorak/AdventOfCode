@@ -1,6 +1,6 @@
 {-# LANGUAGE FlexibleInstances #-}
 
-module BBox (BoxBound, getBBox, bbox) where
+module BBox (BoxBound, getBBox, bbox, (<->)) where
 import Control.Monad.State
 
 -- #TODO extend this to multiple dimensions.  
@@ -11,7 +11,7 @@ import Control.Monad.State
 --                  Bounding Box
 -- ===============================================
 
--- I didn't make this "type BBox = State..."
+-- I didn't do this as "type BBox = State..."
 --  so that users can't just specify any State action,
 --  otherwise they could have "bbox x = put Nothing", 
 --    and getBBox would fail
@@ -21,6 +21,9 @@ data BBox = BBox {
 
 class BoxBound a where
   bbox :: a -> BBox
+
+instance BoxBound BBox where
+  bbox = id
 
 -- Stretch the bounding box over each element in the array
 instance BoxBound a => BoxBound [a] where
@@ -38,6 +41,11 @@ getBBox :: BoxBound a => a -> (Int,Int,Int,Int)
 getBBox x = case run (bbox x) of
               Nothing -> error "Somehow got Nothing for bbox"
               Just result -> result
+
+-- Stretch the bbox by both arguments
+infixr 1 <->
+(<->) :: (BoxBound a, BoxBound b) => a -> b -> BBox
+(<->) x y = BBox $ getOp (bbox x) >> getOp (bbox y)
 
 
 run :: BBox -> Maybe (Int,Int,Int,Int)
