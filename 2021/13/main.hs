@@ -12,7 +12,9 @@ import Data.Hashable
 import Control.Lens (Lens, Lens', lens, view, over)
 import Control.Lens.Tuple (_1, _2)
 
+
 import BBox
+import Utils
 
 import Debug.Trace
 ttrace x = trace (show x) x
@@ -101,7 +103,8 @@ getGrid points = map (map paintCoord) gridCoords
 
 doFolds :: [Fold] -> Set Point -> Set Point
 -- doFolds points folds = foldl' (\ps f -> doFold f ps) points folds
-doFolds = flip $ foldl' $ flip doFold
+-- doFolds = flip $ foldl' $ flip doFold
+doFolds folds = chain $ (map doFold) folds
 
 doFold :: Fold -> Set Point -> Set Point
 doFold (Vertical x) = foldOn (_p._1) x
@@ -114,11 +117,6 @@ foldOn l pos points = Set.union low high'
     high = Set.filter ((>pos) . view l) points
 
     high' = Set.map (over l $ \val -> 2*pos - val) high
-
-groupsOf :: Int -> [a] -> [[a]]
-groupsOf _ [] = []
-groupsOf n xs = take n xs : groupsOf n (drop n xs) 
-
 
 -- =========================================================
 --                             Parsers
