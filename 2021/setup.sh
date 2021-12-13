@@ -1,4 +1,4 @@
-#!/bin/bash
+#! /bin/sed 2,5!d;s/^#.//
 # This script should be sourced from within a shell
 # and not executed. For instance with:
 # 
