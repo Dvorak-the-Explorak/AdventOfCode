@@ -69,6 +69,19 @@ main = do
       let result = solve2 points folds
       printGrid result
 
+solve1 :: Set Point -> [Fold] -> Int
+solve1 points folds = result
+  where
+    result = length $ Set.toList $ doFold (head folds) points
+
+solve2 :: Set Point -> [Fold] -> Set Point
+solve2 points folds = folded
+  where
+    -- folded = foldl' (\ps f -> doFold f ps) points folds
+    folded = doFolds folds points
+
+
+
 printGrid :: Set Point -> IO ()
 printGrid points = do
     let grid = getGrid points
@@ -79,23 +92,17 @@ getGrid :: Set Point -> [[String]]
 getGrid points = map (map paintCoord) gridCoords
   where 
     (minx, maxx, miny, maxy) = getBBox points
-    gridCoords = groupsOf (maxx - minx + 1) $ [Point (x,y) | y <- [miny..maxy], x <- [minx..maxx]]
+    gridCoords = [[Point (x,y) | x <- [minx..maxx]] | y <- [miny..maxy]]
     
-    paintCoord p = if p `Set.member` points then "#" else "."
+    paintCoord p = if p `Set.member` points 
+                    then "#" 
+                    else "."
 
 
+doFolds :: [Fold] -> Set Point -> Set Point
+-- doFolds points folds = foldl' (\ps f -> doFold f ps) points folds
+doFolds = flip $ foldl' $ flip doFold
 
-solve1 :: Set Point -> [Fold] -> Int
-solve1 points folds = result
-  where
-    result = length $ Set.toList $ doFold (head folds) points
-
-solve2 :: Set Point -> [Fold] -> Set Point
-solve2 points folds = folded
-  where
-    folded = foldl' (\ps f -> doFold f ps) points folds
-
-    
 doFold :: Fold -> Set Point -> Set Point
 doFold (Vertical x) = foldOn (_p._1) x
 doFold (Horizontal y) = foldOn (_p._2) y
@@ -111,17 +118,6 @@ foldOn l pos points = Set.union low high'
 groupsOf :: Int -> [a] -> [[a]]
 groupsOf _ [] = []
 groupsOf n xs = take n xs : groupsOf n (drop n xs) 
-
-
-
-
-
-
-
-
-
-
-
 
 
 -- =========================================================
