@@ -1,4 +1,5 @@
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE RankNTypes #-}
 
 import Text.ParserCombinators.Parsec hiding (State)
 import Text.Parsec.Char
@@ -7,6 +8,9 @@ import Data.List (foldl')
 
 import qualified Data.HashSet as Set
 import Data.Hashable
+
+import Control.Lens (Lens, Lens', lens, view, over)
+import Control.Lens.Tuple (_1, _2)
 
 import BBox
 
@@ -19,9 +23,17 @@ instance Hashable Point where
   hashWithSalt salt (Point p) = hashWithSalt salt p
 instance Show Point where
   show (Point p) = show p
+
+
 getPoint (Point p) = p
-first f (Point (x,y)) = Point (f x, y)
-second f (Point (x,y)) = Point (x, f y)
+
+_p :: Lens' Point (Int,Int)
+_p = lens getPoint (const Point)
+
+-- first f (Point (x,y)) = Point (f x, y)
+-- second f (Point (x,y)) = Point (x, f y)
+first = over (_p._1)
+second = over (_p._2)
 
 
 data Fold = Vertical Int | Horizontal Int
@@ -53,7 +65,8 @@ main = do
     (Right (points, folds)) -> do
       putStr "Part 1: "
       print $ solve1 points folds
-      
+
+      -- let result = solve2 points folds
       putStrLn $ solve2 points folds
 
 
@@ -73,33 +86,16 @@ solve2 points folds = result
     result = concatMap (++"\n") $ map (concatMap paintCoord) gridCoords
     
 doFold :: Fold -> Set Point -> Set Point
-doFold (Vertical x) points = foldVertical x points
-doFold (Horizontal y) points = foldHorizontal y points
+doFold (Vertical x) = foldOn (_p._1) x
+doFold (Horizontal y) = foldOn (_p._2) y
 
-
--- fold along a horizontal line
-foldHorizontal :: Int -> Set Point -> Set Point
-foldHorizontal y points = Set.union up down'
+foldOn :: Lens' Point Int -> Int -> Set Point -> Set Point
+foldOn l pos points = Set.union low high'
   where
-    up = Set.filter ((<y) . snd . getPoint) points
-    down = Set.filter ((>y) . snd . getPoint) points
-    -- there are no points on the line (given in puzzle)
+    low = Set.filter ((<pos) . view l) points
+    high = Set.filter ((>pos) . view l) points
 
-    -- 2*y - _y == y - (_y - y)
-    down' = Set.map (second $ \_y -> 2*y - _y) down
-
-
--- fold along a vertical line
-foldVertical :: Int -> Set Point -> Set Point
-foldVertical x points = Set.union left right'
-  where
-    left = Set.filter ((<x) . fst . getPoint) points
-    right = Set.filter ((>x) . fst . getPoint) points
-    -- there are no points on the line (given in puzzle)
-
-    -- 2*x - _x == x - (_x - x)
-    right' = Set.map (first $ \_x -> 2*x - _x) right
-
+    high' = Set.map (over l $ \val -> 2*pos - val) high
 
 groupsOf :: Int -> [a] -> [[a]]
 groupsOf _ [] = []
