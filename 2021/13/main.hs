@@ -97,8 +97,8 @@ getGrid points = map (map paintCoord) gridCoords
     gridCoords = [[Point (x,y) | x <- [minx..maxx]] | y <- [miny..maxy]]
     
     paintCoord p = if p `Set.member` points 
-                    then "#" 
-                    else "."
+                    then "██" 
+                    else "░░"
 
 
 doFolds :: [Fold] -> Set Point -> Set Point
@@ -117,6 +117,10 @@ foldOn l pos points = Set.union low high'
     high = Set.filter ((>pos) . view l) points
 
     high' = Set.map (over l $ \val -> 2*pos - val) high
+
+
+
+    
 
 -- =========================================================
 --                             Parsers
