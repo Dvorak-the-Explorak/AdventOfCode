@@ -66,8 +66,23 @@ main = do
       putStr "Part 1: "
       print $ solve1 points folds
 
-      -- let result = solve2 points folds
-      putStrLn $ solve2 points folds
+      let result = solve2 points folds
+      printGrid result
+
+printGrid :: Set Point -> IO ()
+printGrid points = do
+    let grid = getGrid points
+    mapM putStrLn $ map concat grid
+    return ()
+
+getGrid :: Set Point -> [[String]]
+getGrid points = map (map paintCoord) gridCoords
+  where 
+    (minx, maxx, miny, maxy) = getBBox points
+    gridCoords = groupsOf (maxx - minx + 1) $ [Point (x,y) | y <- [miny..maxy], x <- [minx..maxx]]
+    
+    paintCoord p = if p `Set.member` points then "#" else "."
+
 
 
 solve1 :: Set Point -> [Fold] -> Int
@@ -75,15 +90,11 @@ solve1 points folds = result
   where
     result = length $ Set.toList $ doFold (head folds) points
 
-solve2 :: Set Point -> [Fold] -> String
-solve2 points folds = result
+solve2 :: Set Point -> [Fold] -> Set Point
+solve2 points folds = folded
   where
     folded = foldl' (\ps f -> doFold f ps) points folds
 
-    (minx, maxx, miny, maxy) = getBBox folded
-    gridCoords = groupsOf (maxx - minx + 1) $ [Point (x,y) | y <- [miny..maxy], x <- [minx..maxx]]
-    paintCoord p = if p `Set.member` folded then "#" else "."
-    result = concatMap (++"\n") $ map (concatMap paintCoord) gridCoords
     
 doFold :: Fold -> Set Point -> Set Point
 doFold (Vertical x) = foldOn (_p._1) x
