@@ -1,5 +1,6 @@
 import qualified Data.HashSet as Set
 import System.Random
+import System.Environment
 
 import Control.Lens (Lens, Lens', lens, view, over)
 import Control.Lens.Tuple (_1, _2)
@@ -16,7 +17,11 @@ type Coord = (Int,Int)
 type Points = Set Coord
 
 main = do
-  input <- getContents
+  args <- getArgs
+
+  input <- case args of 
+            [] -> getContents
+            (x:_) -> return x
 
   -- mapM putStrLn $ bigShow input
 
