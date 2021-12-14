@@ -60,28 +60,28 @@ solve1 (template, rules) = most - least
 -- example
 solve2 :: PuzzleInput -> Int
 solve2 ([], _) = 0
-solve2 ([x], _) = 0
 solve2  (template, rules) = maximum counts - minimum counts
   where
     counts = Map.elems letterCounts
 
-    -- counts of how many times 
-    letterCountsDoubled = Map.unionWith (+) (mapKeysWith (+) fst finalPairCounts)  (mapKeysWith (+) snd finalPairCounts)
-    letterCounts = Map.map (`div` 2) (Map.unionWith (+) letterCountsDoubled endsCounts)
+    -- counts of how many times each letter appears as the second of a pair
+    secondCounts = mapKeysWith (+) snd finalPairCounts
+    -- total occurences of each letter (seconds misses only the first character in the template)
+    letterCounts = Map.insertWith (+) (head template) 1 secondCounts
 
 
     startPairCounts = getCounts $ pairs template
     finalPairCounts = (iterate step startPairCounts) !! 40
 
-
+    -- make sure to add any characters that might appear from a rule but not be in the template
     alphabet = unique $ template ++ (Map.elems rules)
     allPairs = [(a,b) | a <- alphabet, b <- alphabet]
-
 
     stepPair pair = case Map.lookup pair pairRules of
                       Nothing -> [pair]
                       Just result -> result
     step pairCounts = Map.fromListWith (+) $ concat $ map (\(pair,count) -> map (,count) $ stepPair pair) $ Map.toList pairCounts
+
 
     pairRules = Map.mapWithKey (\ k v -> [(fst k, v), (v, snd k)]) rules
 
