@@ -8,8 +8,8 @@ import Data.Hashable
 
 import Data.List (foldl', sort, concat)
 import Data.Maybe
--- import Helpers (chain)
-import Control.Monad (liftM2)
+
+import Helpers
 
 import Debug.Trace
 ttrace x = trace (show x) x
@@ -107,24 +107,6 @@ substitute rules (x:y:xs) =
     Nothing -> (x:) $ substitute rules (y:xs)
     Just result -> ([x,result] ++ ) $ substitute rules (y:xs)
 substitute rules xs = xs
-
-
-getCounts :: (Eq a, Hashable a) => [a] -> Map.HashMap a Int
-getCounts = foldl' (\ acc x -> tally x acc) $ Map.fromList []
-  where
-    tally x = Map.insertWith (+) x 1
-
-pairs :: [a] -> [(a,a)]
-pairs [] = []
-pairs xs = zip xs $ tail xs
-
-
-unique :: (Ord a, Eq a) => [a] -> [a]
-unique = trim . sort
-  where
-    trim (x:y:xs) | x == y = trim (x:xs)
-                  | otherwise = (x:) $ trim (y:xs)
-    trim xs = xs
 
 
 -- =========================================================

@@ -1,4 +1,4 @@
-module Utils where
+module Helpers where
 
 import Data.List (foldl', sort)
 import Data.Function ((&))
