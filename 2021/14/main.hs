@@ -59,18 +59,20 @@ solve1 (template, rules) = most - least
 
 -- example
 solve2 :: PuzzleInput -> Int
+solve2 ([], _) = 0
+solve2 ([x], _) = 0
 solve2  (template, rules) = maximum counts - minimum counts
   where
-    pairRules = Map.fromList $ map (\(k,v) -> (k, [(fst k, v), (v, snd k)])) $ Map.toList rules
+    counts = Map.elems letterCounts
+
+    -- counts of how many times 
+    letterCountsDoubled = Map.unionWith (+) (mapKeysWith (+) fst finalPairCounts)  (mapKeysWith (+) snd finalPairCounts)
+    letterCounts = Map.map (`div` 2) (Map.unionWith (+) letterCountsDoubled endsCounts)
 
 
     startPairCounts = getCounts $ pairs template
     finalPairCounts = (iterate step startPairCounts) !! 40
 
-    letterCountsDoubleCounted = Map.unionWith (+) (mapKeysWith (+) fst finalPairCounts)  (mapKeysWith (+) snd finalPairCounts)
-    letterCounts = Map.map (`div` 2) (Map.unionWith (+) letterCountsDoubleCounted endsCounts)
-
-    counts = Map.elems letterCounts
 
     alphabet = unique $ template ++ (Map.elems rules)
     allPairs = [(a,b) | a <- alphabet, b <- alphabet]
@@ -81,11 +83,11 @@ solve2  (template, rules) = maximum counts - minimum counts
                       Just result -> result
     step pairCounts = Map.fromListWith (+) $ concat $ map (\(pair,count) -> map (,count) $ stepPair pair) $ Map.toList pairCounts
 
-
+    pairRules = Map.mapWithKey (\ k v -> [(fst k, v), (v, snd k)]) rules
 
     s = head template
     e = last template
-    -- assume `length template >= 2`
+    -- `length template >= 2` because of earlier patterns in solve2 
     endsCounts = if s == e 
                   then Map.fromList [(s, 2)]
                   else Map.fromList [(s,1), (e,1)]
