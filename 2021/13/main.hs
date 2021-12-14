@@ -1,10 +1,6 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE RankNTypes #-}
 
--- import Data.Tuple.Extra (first, second)
-import Text.ParserCombinators.Parsec hiding (State)
-import Data.List (foldl')
-
 
 import qualified Data.HashSet as Set
 
@@ -21,16 +17,13 @@ ttrace x = trace (show x) x
 part1 = True
 
 main = do
-  input <- getContents
-  let result = parse puzzleInput "(unknown)" input
-  case result of
-    (Left err) -> print err
-    (Right (points, folds)) -> do
-      putStr "Part 1: "
-      print $ solve1 points folds
+  (points,folds) <- getPuzzleInput
 
-      let result = solve2 points folds
-      printGrid result
+  putStr "Part 1: "
+  print $ solve1 points folds
+
+  let result = solve2 points folds
+  printGrid result
 
 solve1 :: Set Point -> [Fold] -> Int
 solve1 points folds = result

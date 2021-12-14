@@ -4,8 +4,12 @@ import Data.List (foldl')
 import Data.Char
 
 import qualified Data.HashSet as Set
-type Set = Set.HashSet
 
+import Debug.Trace
+ttrace x = trace (show x) x
+ttraceLabel s x = trace (s ++ ": " ++ show x) x
+
+type Set = Set.HashSet
 type BigString = [String]
 
 on = '█'
@@ -28,9 +32,12 @@ bigConcat :: BigString -> BigString -> BigString
 bigConcat = zipWith (\ a b -> a ++ [off] ++ b)
 
 makeSet :: [String] -> Set (Int,Int)
+makeSet [] = Set.empty
 makeSet rows = Set.fromList coords
   where
-    coords = map snd $ filter ((==on) . fst) $ zip (concat rows) $ [(row,col) | row <- [0..5], col <- [0..3]]
+    height = length rows
+    width = length $ head rows
+    coords = map snd $ filter ((==on) . fst) $ zip (concat rows) $ [(x,y) | y <- [0..height-1], x <- [0..width-1]]
 
 pattern :: Char -> [String]
 pattern 'A' =  ["░███░",
