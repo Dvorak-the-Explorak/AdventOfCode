@@ -65,20 +65,16 @@ solve2  (template, rules) = maximum counts - minimum counts
 
 
     startPairCounts = getCounts $ pairs template
-    finalPairCounts = (iterate step startPairCounts) !! 10
+    finalPairCounts = (iterate step startPairCounts) !! 40
 
     letterCountsDoubleCounted = Map.unionWith (+) (mapKeysWith (+) fst finalPairCounts)  (mapKeysWith (+) snd finalPairCounts)
-    letterCounts = (`Map.mapWithKey` letterCountsDoubleCounted) (\ k v -> 
-                        case Map.lookup k endsCounts of
-                          Nothing -> v `div` 2
-                          Just n -> (v + n) `div` 2)
+    letterCounts = Map.map (`div` 2) (Map.unionWith (+) letterCountsDoubleCounted endsCounts)
 
     counts = Map.elems letterCounts
 
     alphabet = unique $ template ++ (Map.elems rules)
     allPairs = [(a,b) | a <- alphabet, b <- alphabet]
 
-    -- preCounts = getCounts allPairs
 
     stepPair pair = case Map.lookup pair pairRules of
                       Nothing -> [pair]
@@ -94,19 +90,13 @@ solve2  (template, rules) = maximum counts - minimum counts
                   then Map.fromList [(s, 2)]
                   else Map.fromList [(s,1), (e,1)]
 
--- not in my version of HashMap.Strict apparently
+-- not in my version of HashMap.Strict apparently.
+--    taken from the HashMap.Strict source on hackage
 mapKeys :: (Eq k2, Hashable k2) => (k1 -> k2) -> Map k1 v -> Map k2 v
 mapKeys f = Map.fromList . Map.foldrWithKey (\k x xs -> (f k, x) : xs) []
 
+-- map keys, but add a `join :: v -> v -> v` parameter to handle key collisions in the resulting map
 mapKeysWith join f = Map.fromListWith join . Map.foldrWithKey (\k x xs -> (f k, x) : xs) []
-
-count' :: Eq a => a -> [a] -> Int
-count' x xs = length $ filter (==x) xs
-
-
-squash (a,b) = [a,b]
-unsquash [a,b] = (a,b)
-
 
 
 substitute :: Rules -> String -> String
