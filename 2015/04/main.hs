@@ -29,6 +29,8 @@ solve1 :: PuzzleInput -> IO Int
 solve1 input = 
 
 
+
+
 -- example
 solve2 :: PuzzleInput -> Int
 solve2 = return (-1)
