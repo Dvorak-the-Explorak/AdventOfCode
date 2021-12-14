@@ -51,16 +51,15 @@ getPuzzleInput = do
     (Right puzzleInput) -> return puzzleInput
 
 
--- example
 solve1 :: PuzzleInput-> Int
 solve1 (template, rules) = most - least
   where
     subbed = (iterate (substitute rules) template) !! 10
-    counts = ttrace $ Map.elems $ getCounts subbed
+    counts = Map.elems $ getCounts subbed
     most = maximum counts
     least = minimum counts
 
--- example
+
 solve2 :: PuzzleInput -> Int
 solve2 ([], _) = 0
 solve2  (template, rules) = maximum counts - minimum counts
@@ -88,6 +87,8 @@ substitute rules (x:y:xs) =
     Nothing -> (x:) $ substitute rules (y:xs)
     Just result -> ([x,result] ++ ) $ substitute rules (y:xs)
 substitute rules xs = xs
+
+
 
 -- update the pair counts by running the rules once
 substitutePairCounts :: PairRules -> PairCounts -> PairCounts
