@@ -20,8 +20,8 @@ type Map = Map.HashMap
 
 -- example
 type PuzzleInput = (String, Rules)
-type Rules = Map String String
-type Rule = (String,String)
+type Rules = Map (Char,Char) Char
+type Rule = ((Char,Char), Char)
 
 
 part1 = True
@@ -61,8 +61,7 @@ solve1 (template, rules) = most - least
 solve2 :: PuzzleInput -> Int
 solve2  (template, rules) = maximum counts - minimum counts
   where
-    -- #TODO refactor the Rules type so this isn't so gross
-    pairRules = Map.fromList $ map (\(k,v) -> (unsquash k, [unsquash v, (last v, last k)])) $ Map.toList rules
+    pairRules = Map.fromList $ map (\(k,v) -> (k, [(fst k, v), (v, snd k)])) $ Map.toList rules
 
 
     startPairCounts = getCounts $ pairs template
@@ -76,7 +75,7 @@ solve2  (template, rules) = maximum counts - minimum counts
 
     counts = Map.elems letterCounts
 
-    alphabet = unique $ template ++ (map last $ Map.elems rules)
+    alphabet = unique $ template ++ (Map.elems rules)
     allPairs = [(a,b) | a <- alphabet, b <- alphabet]
 
     -- preCounts = getCounts allPairs
@@ -95,27 +94,6 @@ solve2  (template, rules) = maximum counts - minimum counts
                   then Map.fromList [(s, 2)]
                   else Map.fromList [(s,1), (e,1)]
 
-
-    -- startLetterCounts = Map.unionWith (+) (mapKeys fst startCounts)  (mapKeys snd startCounts)
-    -- finalLetterCounts = trace (("Paircounts: " ++) $ show $ Map.filter (>0) finalCounts) $ ttraceLabel "flc" $ Map.unionWith (+) (mapKeys fst finalCounts)  (mapKeys snd finalCounts)
-
-    -- counts :: [Int]
-    -- counts = Map.elems $ ttraceLabel "counts" $ (`Map.mapWithKey` finalLetterCounts) (\ k v -> 
-    --             case Map.lookup k endsCounts of
-    --               Nothing -> v `div` 2
-    --               Just n -> (v + n) `div` 2)
-
-
-
-
-    -- diff pair = do
-    --   post <- Map.lookup postCounts pair
-    --   pre <- Map.lookup preCounts pair
-    --   return $ post - pre
-
-    -- diff :: (Char, Char) -> Maybe Int
-    -- diff pair = liftM2 (-) (Map.lookup postCounts pair) (Map.lookup preCounts pair)
-
 -- not in my version of HashMap.Strict apparently
 mapKeys :: (Eq k2, Hashable k2) => (k1 -> k2) -> Map k1 v -> Map k2 v
 mapKeys f = Map.fromList . Map.foldrWithKey (\k x xs -> (f k, x) : xs) []
@@ -133,9 +111,9 @@ unsquash [a,b] = (a,b)
 
 substitute :: Rules -> String -> String
 substitute rules (x:y:xs) = 
-  case Map.lookup [x,y] rules of
+  case Map.lookup (x,y) rules of
     Nothing -> (x:) $ substitute rules (y:xs)
-    Just result -> (result ++ ) $ substitute rules (y:xs)
+    Just result -> ([x,result] ++ ) $ substitute rules (y:xs)
 substitute rules xs = xs
 
 
@@ -177,7 +155,7 @@ rule = do
   string " -> "
   m <- letter
   end
-  return ([l,r], [l, m])
+  return ((l,r), m)
 
 
 
