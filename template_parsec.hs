@@ -34,11 +34,9 @@ getPuzzleInput = do
     (Right puzzleInput) -> return puzzleInput
 
 
--- example
 solve1 :: PuzzleInput-> Int
 solve1 = const (-1)
 
--- example
 solve2 :: PuzzleInput -> Int
 solve2 = const (-1)
 

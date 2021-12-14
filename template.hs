@@ -24,10 +24,13 @@ getPuzzleInput :: IO PuzzleInput
 getPuzzleInput = map (map read . words) <$> lines <$> getContents 
 
 
--- example
-solve1 :: PuzzleInput-> Int
-solve1 = sum . map product
 
--- example
+
+
+
+
+solve1 :: PuzzleInput-> Int
+solve1 = const (-1)
+
 solve2 :: PuzzleInput -> Int
-solve2 = minimum . map maximum
+solve2 = const (-1)
