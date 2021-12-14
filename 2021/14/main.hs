@@ -23,6 +23,9 @@ type PuzzleInput = (String, Rules)
 type Rules = Map (Char,Char) Char
 type Rule = ((Char,Char), Char)
 
+type PairCounts = Map (Char,Char) Int
+type PairRules = Map (Char,Char) [(Char, Char)]
+
 
 part1 = True
 
@@ -69,28 +72,36 @@ solve2  (template, rules) = maximum counts - minimum counts
     -- total occurences of each letter (seconds misses only the first character in the template)
     letterCounts = Map.insertWith (+) (head template) 1 secondCounts
 
-
+    -- counts of each pair in the template
     startPairCounts = getCounts $ pairs template
+    -- counts of each pair after all the steps
     finalPairCounts = (iterate step startPairCounts) !! 40
 
-    -- make sure to add any characters that might appear from a rule but not be in the template
-    alphabet = unique $ template ++ (Map.elems rules)
-    allPairs = [(a,b) | a <- alphabet, b <- alphabet]
-
-    stepPair pair = case Map.lookup pair pairRules of
-                      Nothing -> [pair]
-                      Just result -> result
-    step pairCounts = Map.fromListWith (+) $ concat $ map (\(pair,count) -> map (,count) $ stepPair pair) $ Map.toList pairCounts
+    step = substitutePairCounts $ pairRulesFromRules rules
 
 
-    pairRules = Map.mapWithKey (\ k v -> [(fst k, v), (v, snd k)]) rules
 
-    s = head template
-    e = last template
-    -- `length template >= 2` because of earlier patterns in solve2 
-    endsCounts = if s == e 
-                  then Map.fromList [(s, 2)]
-                  else Map.fromList [(s,1), (e,1)]
+-- update the full string by running the rules once
+substitute :: Rules -> String -> String
+substitute rules (x:y:xs) = 
+  case Map.lookup (x,y) rules of
+    Nothing -> (x:) $ substitute rules (y:xs)
+    Just result -> ([x,result] ++ ) $ substitute rules (y:xs)
+substitute rules xs = xs
+
+-- update the pair counts by running the rules once
+substitutePairCounts :: PairRules -> PairCounts -> PairCounts
+substitutePairCounts pairRules pairCounts = Map.fromListWith (+) $ concat $ map (\(pair,count) -> map (,count) $ stepPair pair) $ Map.toList pairCounts
+  where 
+    -- get the new pairs from pairRules or return the pair as a singleton list
+    stepPair pair = 
+      case Map.lookup pair pairRules of
+        Nothing -> [pair]
+        Just result -> result
+
+-- instead of returning the inserted character, return the 2 new pairs that will exist after the update
+pairRulesFromRules :: Rules -> PairRules
+pairRulesFromRules rules = Map.mapWithKey (\ k v -> [(fst k, v), (v, snd k)]) rules
 
 -- not in my version of HashMap.Strict apparently.
 --    taken from the HashMap.Strict source on hackage
@@ -99,14 +110,6 @@ mapKeys f = Map.fromList . Map.foldrWithKey (\k x xs -> (f k, x) : xs) []
 
 -- map keys, but add a `join :: v -> v -> v` parameter to handle key collisions in the resulting map
 mapKeysWith join f = Map.fromListWith join . Map.foldrWithKey (\k x xs -> (f k, x) : xs) []
-
-
-substitute :: Rules -> String -> String
-substitute rules (x:y:xs) = 
-  case Map.lookup (x,y) rules of
-    Nothing -> (x:) $ substitute rules (y:xs)
-    Just result -> ([x,result] ++ ) $ substitute rules (y:xs)
-substitute rules xs = xs
 
 
 -- =========================================================
