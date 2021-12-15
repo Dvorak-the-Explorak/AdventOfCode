@@ -20,9 +20,9 @@ part1 = True
 main = do
   vals <- getPuzzleInput
 
-  putStr "Part 1: "
-  let result1 = solve1 vals
-  print result1
+  -- putStr "Part 1: "
+  -- let result1 = solve1 vals
+  -- print result1
 
   putStr "Part 2: "
   let result1 = solve2 vals
@@ -45,18 +45,38 @@ solve1 instructions = length $ filter (==True) $ Map.elems finalLights
     finalLights :: Map Coord Bool
     finalLights = chain (map follow instructions) lights
 
-    follow (On tl br) = mapOnSquare on1 tl br 
-    follow (Off tl br) = mapOnSquare off1 tl br 
-    follow (Toggle tl br) = mapOnSquare toggle1 tl br 
+    follow (On tl br) = mapOnSquare1 on1 tl br 
+    follow (Off tl br) = mapOnSquare1 off1 tl br 
+    follow (Toggle tl br) = mapOnSquare1 toggle1 tl br 
 
     -- coords = [(x,y) | x <- [0..999], y <- [0..999]]
     lights = Map.empty
 
 solve2 :: PuzzleInput -> Int
-solve2 = const (-1)
+solve2 instructions = sum $ Map.elems finalLights
+  where
+    finalLights :: Map Coord Int
+    finalLights = chain (map follow instructions) lights
 
-mapOnSquare :: (Maybe Bool -> Maybe Bool) -> Coord -> Coord ->  Map Coord Bool -> Map Coord Bool
-mapOnSquare f tl br lights = chain (map go1 coords) lights
+    follow (On tl br) = mapOnSquare2 on2 tl br 
+    follow (Off tl br) = mapOnSquare2 off2 tl br 
+    follow (Toggle tl br) = mapOnSquare2 toggle2 tl br 
+
+    -- coords = [(x,y) | x <- [0..999], y <- [0..999]]
+    lights = Map.empty
+
+mapOnSquare1 :: (Maybe Bool -> Maybe Bool) -> Coord -> Coord ->  Map Coord Bool -> Map Coord Bool
+mapOnSquare1 f tl br lights = chain (map go1 coords) lights
+  where
+    -- go1 :: Coord -> Map Coord Bool -> Map Coord Bool
+    go1 coord = Map.alter f coord 
+    coords = [(x,y) | x <- [minx..maxx], y <- [miny..maxy]]
+    inSquare (x,y) = x>=minx && x<=maxx && y>=miny && y<=maxy
+    (minx, miny) = tl
+    (maxx, maxy) = br
+
+mapOnSquare2 :: (Maybe Int -> Maybe Int) -> Coord -> Coord ->  Map Coord Int -> Map Coord Int
+mapOnSquare2 f tl br lights = chain (map go1 coords) lights
   where
     -- go1 :: Coord -> Map Coord Bool -> Map Coord Bool
     go1 coord = Map.alter f coord 
@@ -82,6 +102,21 @@ off1 :: Maybe Bool -> Maybe Bool
 off1 _ = Nothing
 
 
+
+
+toggle2 :: Maybe Int -> Maybe Int
+toggle2 Nothing = Just 2
+toggle2 (Just n) = Just (n+2)
+
+on2 :: Maybe Int -> Maybe Int
+on2 Nothing = Just 1
+on2 (Just n) = Just (n+1)
+
+off2 :: Maybe Int -> Maybe Int
+off2 (Just n) 
+  | n<2 = Nothing
+  | otherwise = Just (n-1)
+off2 Nothing = Nothing
 
 
 
