@@ -58,25 +58,42 @@ solve1 grid = case result of
     bottomRight = (m-1,n-1)
 
 solve2 :: PuzzleInput -> Int
-solve2 = const (-1)
+-- solve2 grid = trace (showGrid grid ++ "\n\n\n" ++ showGrid grid') $ solve1 grid'
+solve2 grid = solve1 grid'
+  where
+    grid' = tileGrid grid
 
 
 
+showGrid :: Grid -> String
+showGrid grid = concatMap ((++"\n") . showRow) grid
+  where showRow = concatMap show
 
 
--- dijk :: Grid -> PQ Node -> Set Coord -> Dists -> Coord -> Maybe Int
--- dijk grid pq visited dists end = result
---   where
---     -- result will be Nothing if pq is emtpy, otherwise apply step
---     result = step =<< PQ.minView pq
 
---     step (Node (coord, dist), pq') = 
---       if coord == end
---         then Just 0
---         else if coord `Set.member` visited
---           then dijk grid pq' visited dists end
---           else (dist+) <$> dijk grid (addAdjacent grid dists coord dist pq') (Set.insert coord visited) dists end
+tileGrid grid = grid'
+  where
+    row = rightConcat $ take 5 $ iterate incGrid grid
+    grid' = downConcat $ take 5 $ iterate incGrid row
 
+joinRight :: Grid -> Grid -> Grid
+joinRight g1 g2 = zipWith (++) g1 g2
+
+rightConcat :: [Grid] -> Grid
+rightConcat [grid] = grid
+rightConcat (g1:g2:grids) = rightConcat $ (joinRight g1 g2):grids
+
+joinDown :: Grid -> Grid -> Grid
+joinDown = (++)
+
+downConcat :: [Grid] -> Grid
+downConcat [grid] = grid
+downConcat (g1:g2:grids) = downConcat $ (joinDown g1 g2):grids
+
+
+
+incGrid :: Grid -> Grid
+incGrid = map (map (\x -> 1 + (x `mod` 9)))
 
 
 dijk :: Grid -> PQ Node -> Set Coord -> Dists -> Coord -> Maybe Int
