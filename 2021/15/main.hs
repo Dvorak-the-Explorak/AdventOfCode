@@ -18,7 +18,7 @@ type Map = Map.HashMap
 -- example
 type PuzzleInput = Grid
 type Grid = [[Int]]
-data MapGrid = MapGrid Coord (Map Coord Int)
+data MapGrid = MapGrid !Coord !(Map Coord Int)
 type Coord = (Int,Int)
 
 newtype Node = Node (Coord, Int)
@@ -124,14 +124,14 @@ dijk grid pq visited end = do
         else dijk grid (addAdjacent grid coord dist pq') visited' end
 
 dijk2 :: MapGrid -> PQ Node -> Set Coord -> Coord -> Maybe Int
-dijk2 grid pq visited end = do
+dijk2 grid@(MapGrid s g) pq visited end = do
     (Node (coord, dist), pq') <- PQ.minView pq
     -- let dist' = 
     let visited' = Set.insert coord visited
 
 
     if coord == end 
-      then Just dist
+      then trace (showVisited s visited) $ Just dist
       else if coord `Set.member` visited
         then dijk2 grid pq' visited end
         else dijk2 grid (addAdjacentMapGrid grid coord dist pq') visited' end
@@ -218,3 +218,12 @@ right :: Coord -> Coord
 right (row,col) = (row,col+1)
 
 
+
+showVisited :: (Int,Int) -> Set Coord -> String
+showVisited (m,n) points = concatMap (++"\n") grid
+  where
+    paint c = if c `Set.member` points 
+                then '#'
+                else ' '
+    grid = map (map paint) coords
+    coords = [[(row,col) | col <- [0..n-1]] | row <- [0..m-1]]

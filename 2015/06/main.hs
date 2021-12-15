@@ -55,12 +55,28 @@ solve1 instructions = length $ filter (==True) $ Map.elems finalLights
 solve2 :: PuzzleInput -> Int
 solve2 = const (-1)
 
+-- mapOnSquare :: (Bool -> Bool) -> Coord -> Coord ->  Map Coord Bool -> Map Coord Bool
+-- mapOnSquare f tl br lights = Map.mapWithKey (\ k v -> if inSquare k then f v else v) lights
+--   where
+--     inSquare (x,y) = x>=minx && x<=maxx && y>=miny && y<=maxy
+--     (minx, miny) = tl
+--     (maxx, maxy) = br
+
+
 mapOnSquare :: (Bool -> Bool) -> Coord -> Coord ->  Map Coord Bool -> Map Coord Bool
-mapOnSquare f tl br lights = Map.mapWithKey (\ k v -> if inSquare k then f v else v) lights
+mapOnSquare f tl br lights = chain (map go1 coords) lights
   where
+    -- go1 :: Coord -> Map Coord Bool -> Map Coord Bool
+    go1 coord = Map.adjust f coord 
+    coords = [(x,y) | x <- [minx..maxx], y <- [miny..maxy]]
     inSquare (x,y) = x>=minx && x<=maxx && y>=miny && y<=maxy
     (minx, miny) = tl
     (maxx, maxy) = br
+
+
+
+
+
 
 toggle1 :: Bool -> Bool
 toggle1 True = False
