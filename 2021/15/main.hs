@@ -15,7 +15,6 @@ type PQ = PQ.MinQueue
 type PuzzleInput = Grid
 type Grid = [[Int]]
 type Coord = (Int,Int)
-type Dists = [[Maybe Int]]
 
 newtype Node = Node (Coord, Int)
 instance Ord Node where
@@ -49,26 +48,21 @@ solve1 grid = case result of
                 Nothing -> (-1)
                 Just n -> n
   where
-    result = dijk grid pq visited dists bottomRight
+    result = dijk grid pq visited bottomRight
     visited = Set.empty
-    dists = setGridVal topLeft (Just 0) $ (map (map $ const Nothing)) grid
-    pq = adjacentPQ grid dists topLeft 0
+    pq = adjacentPQ grid topLeft 0
     (m,n) = size grid
     topLeft = (0,0)
     bottomRight = (m-1,n-1)
 
 solve2 :: PuzzleInput -> Int
--- solve2 grid = trace (showGrid grid ++ "\n\n\n" ++ showGrid grid') $ solve1 grid'
-solve2 grid = solve1 grid'
-  where
-    grid' = tileGrid grid
+solve2 grid = solve1 $ tileGrid grid
 
 
 
 showGrid :: Grid -> String
 showGrid grid = concatMap ((++"\n") . showRow) grid
   where showRow = concatMap show
-
 
 
 tileGrid grid = grid'
@@ -96,8 +90,8 @@ incGrid :: Grid -> Grid
 incGrid = map (map (\x -> 1 + (x `mod` 9)))
 
 
-dijk :: Grid -> PQ Node -> Set Coord -> Dists -> Coord -> Maybe Int
-dijk grid pq visited dists end = do
+dijk :: Grid -> PQ Node -> Set Coord -> Coord -> Maybe Int
+dijk grid pq visited end = do
     (Node (coord, dist), pq') <- PQ.minView pq
     -- let dist' = 
     let visited' = Set.insert coord visited
@@ -106,8 +100,8 @@ dijk grid pq visited dists end = do
     if coord == end 
       then Just dist
       else if coord `Set.member` visited
-        then dijk grid pq' visited dists end
-        else dijk grid (addAdjacent grid dists coord dist pq') visited' dists end
+        then dijk grid pq' visited end
+        else dijk grid (addAdjacent grid coord dist pq') visited' end
 
 
 
@@ -118,8 +112,8 @@ size :: Grid -> (Int,Int)
 size [] = (0,0)
 size grid = (length grid, length $ head grid)
 
-addAdjacent :: Grid -> Dists ->  Coord -> Int -> PQ Node -> PQ Node
-addAdjacent grid dists coord distToCoord pq = PQ.union pq $ adjacentPQ grid dists coord distToCoord
+addAdjacent :: Grid ->  Coord -> Int -> PQ Node -> PQ Node
+addAdjacent grid coord distToCoord pq = PQ.union pq $ adjacentPQ grid coord distToCoord
 
 getGridVal :: [[a]] -> Coord -> a
 getGridVal grid (row,col) = (grid !! row) !! col
@@ -134,15 +128,13 @@ setGridVal (m,n) x grid = result
 
 
 
-adjacentPQ :: Grid -> Dists -> Coord -> Int ->  PQ Node
-adjacentPQ grid dists coord distToCoord = PQ.fromList $ map makeNode $ adjacent grid coord
+adjacentPQ :: Grid -> Coord -> Int ->  PQ Node
+adjacentPQ grid coord distToCoord = PQ.fromList $ map makeNode $ adjacent grid coord
   where
-    dist c = getGridVal dists c -- Coord -> Maybe Int
     risk c = getGridVal grid c -- Coord -> Int
 
-    getVal c = case dist c of
-              Nothing -> risk c + distToCoord -- no path there yet
-              Just prevDist -> trace ("dist grid used " ++ show c ) $ min (distToCoord + risk c) prevDist
+    getVal c = risk c + distToCoord
+
     makeNode c = Node (c, getVal c)
 
 adjacent :: Grid -> Coord -> [Coord]
