@@ -49,25 +49,17 @@ solve1 instructions = length $ filter (==True) $ Map.elems finalLights
     follow (Off tl br) = mapOnSquare off1 tl br 
     follow (Toggle tl br) = mapOnSquare toggle1 tl br 
 
-    coords = [(x,y) | x <- [0..999], y <- [0..999]]
-    lights = Map.fromList $ zip coords $ repeat False
+    -- coords = [(x,y) | x <- [0..999], y <- [0..999]]
+    lights = Map.empty
 
 solve2 :: PuzzleInput -> Int
 solve2 = const (-1)
 
--- mapOnSquare :: (Bool -> Bool) -> Coord -> Coord ->  Map Coord Bool -> Map Coord Bool
--- mapOnSquare f tl br lights = Map.mapWithKey (\ k v -> if inSquare k then f v else v) lights
---   where
---     inSquare (x,y) = x>=minx && x<=maxx && y>=miny && y<=maxy
---     (minx, miny) = tl
---     (maxx, maxy) = br
-
-
-mapOnSquare :: (Bool -> Bool) -> Coord -> Coord ->  Map Coord Bool -> Map Coord Bool
+mapOnSquare :: (Maybe Bool -> Maybe Bool) -> Coord -> Coord ->  Map Coord Bool -> Map Coord Bool
 mapOnSquare f tl br lights = chain (map go1 coords) lights
   where
     -- go1 :: Coord -> Map Coord Bool -> Map Coord Bool
-    go1 coord = Map.adjust f coord 
+    go1 coord = Map.alter f coord 
     coords = [(x,y) | x <- [minx..maxx], y <- [miny..maxy]]
     inSquare (x,y) = x>=minx && x<=maxx && y>=miny && y<=maxy
     (minx, miny) = tl
@@ -78,12 +70,16 @@ mapOnSquare f tl br lights = chain (map go1 coords) lights
 
 
 
-toggle1 :: Bool -> Bool
-toggle1 True = False
-toggle1 False = True
+toggle1 :: Maybe Bool -> Maybe Bool
+toggle1 Nothing = Just True
+toggle1 (Just True) = Nothing
+toggle1 (Just False) = Just True
 
-on1 _ = True
-off1 _ = False
+on1 :: Maybe Bool -> Maybe Bool
+on1 _ = Just True
+
+off1 :: Maybe Bool -> Maybe Bool
+off1 _ = Nothing
 
 
 
