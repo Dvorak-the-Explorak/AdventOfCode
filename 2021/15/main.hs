@@ -1,19 +1,24 @@
+{-# LANGUAGE BangPatterns #-}
+
 import Data.List (foldl')
 -- import Helpers (chain)
 import qualified Data.HashSet as Set
 import qualified Data.PQueue.Min as PQ
 import qualified Data.HashMap.Strict as Map
 import Data.Char (digitToInt)
+import Data.Maybe
 
 import Debug.Trace
 ttrace x = trace (show x) x
 
 type Set = Set.HashSet
 type PQ = PQ.MinQueue
+type Map = Map.HashMap
 
 -- example
 type PuzzleInput = Grid
 type Grid = [[Int]]
+data MapGrid = MapGrid Coord (Map Coord Int)
 type Coord = (Int,Int)
 
 newtype Node = Node (Coord, Int)
@@ -48,7 +53,7 @@ solve1 grid = case result of
                 Nothing -> (-1)
                 Just n -> n
   where
-    result = dijk grid pq visited bottomRight
+    result = dijk2 (gridToMapGrid grid) pq visited bottomRight
     visited = Set.empty
     pq = adjacentPQ grid topLeft 0
     (m,n) = size grid
@@ -58,6 +63,21 @@ solve1 grid = case result of
 solve2 :: PuzzleInput -> Int
 solve2 grid = solve1 $ tileGrid grid
 
+
+gridToMapGrid :: Grid -> MapGrid
+gridToMapGrid !grid = MapGrid (m,n) g
+  where
+    (m,n) = size grid
+
+    vals :: [Int]
+    vals = concat grid
+    
+    coords :: [Coord]
+    coords = [(row,col) | row <- [0..m-1], col <- [0..n-1]]
+
+
+    g :: Map Coord Int
+    g = Map.fromList $ zip coords vals
 
 
 showGrid :: Grid -> String
@@ -103,6 +123,19 @@ dijk grid pq visited end = do
         then dijk grid pq' visited end
         else dijk grid (addAdjacent grid coord dist pq') visited' end
 
+dijk2 :: MapGrid -> PQ Node -> Set Coord -> Coord -> Maybe Int
+dijk2 grid pq visited end = do
+    (Node (coord, dist), pq') <- PQ.minView pq
+    -- let dist' = 
+    let visited' = Set.insert coord visited
+
+
+    if coord == end 
+      then Just dist
+      else if coord `Set.member` visited
+        then dijk2 grid pq' visited end
+        else dijk2 grid (addAdjacentMapGrid grid coord dist pq') visited' end
+
 
 
 
@@ -114,6 +147,10 @@ size grid = (length grid, length $ head grid)
 
 addAdjacent :: Grid ->  Coord -> Int -> PQ Node -> PQ Node
 addAdjacent grid coord distToCoord pq = PQ.union pq $ adjacentPQ grid coord distToCoord
+
+addAdjacentMapGrid :: MapGrid ->  Coord -> Int -> PQ Node -> PQ Node
+addAdjacentMapGrid grid coord distToCoord pq = PQ.union pq $ adjacentPQMapGrid grid coord distToCoord
+
 
 getGridVal :: [[a]] -> Coord -> a
 getGridVal grid (row,col) = (grid !! row) !! col
@@ -137,10 +174,29 @@ adjacentPQ grid coord distToCoord = PQ.fromList $ map makeNode $ adjacent grid c
 
     makeNode c = Node (c, getVal c)
 
+adjacentPQMapGrid :: MapGrid -> Coord -> Int ->  PQ Node
+adjacentPQMapGrid grid@(MapGrid s g) coord distToCoord = PQ.fromList $ map makeNode $ adjacentMapGrid grid coord
+  where
+    risk c = fromJust $ Map.lookup c g -- Coord -> Int
+
+    getVal c = risk c + distToCoord
+
+    makeNode c = Node (c, getVal c)
+
 adjacent :: Grid -> Coord -> [Coord]
 adjacent grid c@(row,col) = filter valid [up c, down c, left c, right c]
   where
     (m,n) = size grid
+    valid (row,col) 
+      | row < 0 = False
+      | col < 0 = False
+      | row >= m = False
+      | col >= n = False
+      | otherwise = True
+
+adjacentMapGrid :: MapGrid -> Coord -> [Coord]
+adjacentMapGrid (MapGrid (m,n) grid) c@(row,col) = filter valid [up c, down c, left c, right c]
+  where
     valid (row,col) 
       | row < 0 = False
       | col < 0 = False
