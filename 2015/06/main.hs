@@ -39,6 +39,9 @@ getPuzzleInput = do
     (Right puzzleInput) -> return puzzleInput
 
 
+-- #TODO Instead of keeping track of every individual light, 
+--  make a data structure to intersect the squares
+
 solve1 :: PuzzleInput-> Int
 solve1 instructions = length $ filter (==True) $ Map.elems finalLights
   where
