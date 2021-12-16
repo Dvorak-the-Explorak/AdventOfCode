@@ -16,7 +16,7 @@ ttrace x = trace (show x) x
 
 -- example
 
-type Answer = [String]
+type Answer = Int
 
 
 part1 = True
@@ -33,13 +33,6 @@ getAnswer = do
   case parseResult of
     (Left err) -> fail $ show err
     (Right answer) -> return answer
-
-
-solve1 :: Answer-> Int
-solve1 = const (-1)
-
-solve2 :: Answer -> Int
-solve2 = const (-1)
 
 
 decodeHex :: Char -> String
@@ -70,14 +63,14 @@ binToInt = foldl' (\acc x -> acc*2 + digitToInt x) 0
 -- =========================================================
 
 --example
-puzzle :: Parsec String Int [String]
+puzzle :: Parsec String Int Answer
 puzzle = do
   result <- packet
   many zero
   eof
   return result
 
-packet :: Parsec String Int [String]
+packet :: Parsec String Int Answer
 packet = do
   v <- version
   t <- typeID
@@ -87,8 +80,8 @@ packet = do
 
   -- switch on type ID
   case t of
-    4 -> (:[]) <$> literal
-    n -> operator n
+    4 -> (const v) <$> literal
+    n -> (\x -> v + x) <$> operator n
 
 
 version = binToInt <$> nbits 3 
@@ -109,7 +102,7 @@ moreBlocks = do
 
 
 
-operator :: Int ->  Parsec String Int [String]
+operator :: Int ->  Parsec String Int Answer
 operator n = flip (<?>) "operator" $ do
   mode <- bit
 
@@ -118,7 +111,7 @@ operator n = flip (<?>) "operator" $ do
     '1' -> operatorMode1 n
 
 
-operatorMode0 :: Int ->  Parsec String Int [String]
+operatorMode0 :: Int ->  Parsec String Int Answer
 operatorMode0 n = do
   packetsTotalLength <- binToInt <$> nbits 15
   
@@ -132,35 +125,34 @@ operatorMode0 n = do
 
   return packs
 
-operatorMode1 :: Int -> Parsec String Int [String]
+operatorMode1 :: Int -> Parsec String Int Answer
 operatorMode1 n = do
   numPackets <- binToInt <$> nbits 11
   getNPackets numPackets
 
 
-getNPackets :: Int -> Parsec String Int [String]
+getNPackets :: Int -> Parsec String Int Answer
 getNPackets n = do
   if n==0
-    then return []
+    then return 0
     else do
       pack <- packet
-      (pack <>) <$> (getNPackets (n-1))
+      (pack +) <$> (getNPackets (n-1))
 
 -- uses the internal state
-getPacketsUntilBitLength :: Int -> Parsec String Int [String]
+getPacketsUntilBitLength :: Int -> Parsec String Int Answer
 getPacketsUntilBitLength n = do
   cumsum <- getState
   if cumsum == n
-    then return []
+    then return 0
     else do
       pack <- packet
-      (pack <>) <$> getPacketsUntilBitLength n
+      (pack +) <$> getPacketsUntilBitLength n
 
-
-npackets 0 = return []
+npackets 0 = return 0
 npackets n = do
   pack <- packet
-  (pack <>) <$> npackets (n-1)
+  (pack +) <$> npackets (n-1)
 
 nbits 0 = return ""
 nbits n = do
