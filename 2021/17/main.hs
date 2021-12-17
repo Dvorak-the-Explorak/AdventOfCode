@@ -2,11 +2,13 @@ import Text.ParserCombinators.Parsec hiding (State)
 import Text.Parsec.Char
 
 import Data.Maybe
+import Data.Tuple.Extra (first, second)
 
 import Data.List (foldl')
 -- import Helpers (chain)
 import Debug.Trace
 ttrace x = trace (show x) x
+ttrace' f x = trace (show $ f x) x
 
 -- example
 type PuzzleInput = (Range, Range)
@@ -30,8 +32,13 @@ main = do
   print result1
 
   putStr "Part 2: "
-  let result1 = solve2 vals
+  let result1 = solve2a vals
   print result1
+
+  putStr "Part 2 (method2):  "
+  let result1 = solve2b vals
+  print result1
+
 
 
 
@@ -57,8 +64,9 @@ solve1 region@((xmin,xmax), (ymin,ymax)) = result
     tri n = n*(n+1) `div` 2
 
 
-solve2 :: PuzzleInput -> Int
-solve2 region@((xmin,xmax), (ymin,ymax)) = length $ filter hits velocities
+
+solve2a :: PuzzleInput -> Int
+solve2a region@((xmin,xmax), (ymin,ymax)) = length $ filter hits velocities
   where
     hits = (==Hit) . getResult
     results = map getResult velocities
@@ -93,8 +101,60 @@ runUntilResult :: (a -> a) -> (a -> Maybe Result) -> a -> Result
 runUntilResult step get phase = head $ catMaybes $ map get $ iterate step phase
 
 
+-- assumes ymax < 0
+solve2b :: PuzzleInput -> Int
+solve2b region@((xmin,xmax), (ymin,ymax)) = hits
+  where
+    -- #TODO find the largest n st. tri n < xmin
+    --  use this as lower bound (as any smaller than that will stop before the target)
+    xvels = [0..xmax]
+    yvels = [ymin..(1-ymin)]
+
+    -- The list of results generated for each starting x velocity
+    xhits = map xResults xvels
+    -- The delay before a result was returned, and how many hits in a row after that
+    yhits = filter ((/=0) . snd) $ map (hitRangeY . yResults) yvels
+
+    hits = sum $ [(length $ filter (isHit yrange) xhits) | yrange <- yhits]
+
+    isHit (ydelay, yhits) xrs = any (==Just Hit) $ split ydelay yhits xrs
+
+    -- get the list of Maybe Results from then starting point
+    xResults = map (resultX (xmin,xmax)) . iterate stepx . start
+    yResults v = map (resultY (ymin,ymax)) $ iterate stepy $ start v
+
+    hitRangeY = second (length . takeWhile (==Just Hit)) . delayAndHits 
+
+    delayAndHits = first length . span (==Nothing)
+
+    split i j = take j . drop i
+
+    start vel = (0, vel)
 
 
+stepy (y,v) = (y+v, v-1)
+stepx (x,u) = (x+u, u - signum u)
+
+resultY :: Range -> (Int,Int) -> Maybe Result
+resultY (ymin,ymax) (y,v)  =
+  if y < ymin 
+    then Just Miss
+    else if y <= ymax
+      then Just Hit
+      else Nothing
+
+resultX :: Range -> (Int,Int) -> Maybe Result
+resultX (xmin,xmax) (x,u) =
+  if x > xmax
+    then Just Miss
+    else if x >= xmin
+      then Just Hit
+      else if u == 0
+        then Just Miss
+        else Nothing
+
+
+cross f g (x,y) = (f x, g y)
 
 -- =========================================================
 --                             Parsers
