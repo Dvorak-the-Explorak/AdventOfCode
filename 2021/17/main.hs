@@ -31,12 +31,8 @@ main = do
   let result1 = solve1 vals
   print result1
 
-  putStr "Part 2: "
-  let result1 = solve2a vals
-  print result1
-
-  putStr "Part 2 (method2):  "
-  let result1 = solve2b vals
+  putStr "Part 2:  "
+  let result1 = solve2 vals
   print result1
 
 
@@ -63,47 +59,9 @@ solve1 region@((xmin,xmax), (ymin,ymax)) = result
 
     tri n = n*(n+1) `div` 2
 
-
-
-solve2a :: PuzzleInput -> Int
-solve2a region@((xmin,xmax), (ymin,ymax)) = length $ filter hits velocities
-  where
-    hits = (==Hit) . getResult
-    results = map getResult velocities
-    getResult = runUntilResult step (getHitOrMiss region) . start 
-    start vel = ((0,0), vel)
-    velocities = [(x,y) | x <- [0..xmax], y <- [ymin..(1-ymin)]]
-
-
-getHitOrMiss :: PuzzleInput -> Phase -> Maybe Result
-getHitOrMiss (xrange, yrange) ((x,y), (u,v)) = result
-  where
-    result = if inRange x xrange && inRange y yrange
-          then Just Hit
-          else if y < fst yrange && v < 0
-            then Just Miss
-            else Nothing
-
-inRange :: Int -> Range -> Bool
-inRange x (low,high) = low<=x && x<=high
-
-
-step :: Phase -> Phase
-step ((x,y), (u,v)) = ((x',y'), (u',v'))
-  where
-    x' = x + u
-    y' = y + v
-    u' = u - signum u
-    v' = v - 1
-
-
-runUntilResult :: (a -> a) -> (a -> Maybe Result) -> a -> Result
-runUntilResult step get phase = head $ catMaybes $ map get $ iterate step phase
-
-
--- assumes ymax < 0
-solve2b :: PuzzleInput -> Int
-solve2b region@((xmin,xmax), (ymin,ymax)) = hits
+-- assumes ymax < 0 (otherwise the upper bound for y might be harder to find)
+solve2 :: PuzzleInput -> Int
+solve2 region@((xmin,xmax), (ymin,ymax)) = hits
   where
     -- #TODO find the largest n st. tri n < xmin
     --  use this as lower bound (as any smaller than that will stop before the target)
