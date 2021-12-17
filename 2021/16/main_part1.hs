@@ -4,12 +4,10 @@ import Text.Parsec.Char
 
 import Control.Monad.State
 import Control.Monad.Identity
-import Data.Monoid (Sum(..), Product(..))
 
 import Data.Char (digitToInt)
-import GHC.Integer
 
-import Data.List (foldl', foldl1)
+import Data.List (foldl')
 -- import Helpers (chain)
 
 
@@ -77,17 +75,13 @@ packet = do
   v <- version
   t <- typeID
 
+  temp <- getState
+
+
   -- switch on type ID
   case t of
-    0 -> getSum . mconcat . map Sum <$> operator
-    1 -> getProduct . mconcat . map Product <$> operator
-    2 -> foldl1 min <$> operator 
-    3 -> foldl1 max <$> operator
-    4 -> binToInt <$> literal
-    5 -> (\(x:y:xs) -> if x>y then 1 else 0) <$> operator
-    6 -> (\(x:y:xs) -> if x<y then 1 else 0) <$> operator
-    7 -> (\(x:y:xs) -> if x==y then 1 else 0) <$> operator
-    n -> fail $ "Unknown operator typeID: " ++ show n 
+    4 -> (const v) <$> literal
+    n -> (\x -> v + x) <$> operator n
 
 
 version = binToInt <$> nbits 3 
@@ -106,19 +100,19 @@ moreBlocks = do
 
 
 
-operator :: Parsec String Int [Answer]
-operator = flip (<?>) "operator" $ do
+
+
+operator :: Int ->  Parsec String Int Answer
+operator n = flip (<?>) "operator" $ do
   mode <- bit
 
   case mode of
-    '0' -> operatorMode0
-    '1' -> operatorMode1
+    '0' -> operatorMode0 n
+    '1' -> operatorMode1 n
 
 
--- #TODO make this return a (NonEmpty Answer) instead of [Answer]
--- #TODO actually could abstract over the monoid used for the answer
-operatorMode0 :: Parsec String Int [Answer]
-operatorMode0 = do
+operatorMode0 :: Int ->  Parsec String Int Answer
+operatorMode0 n = do
   packetsTotalLength <- binToInt <$> nbits 15
   
   bitsSoFar <- getState
@@ -131,26 +125,34 @@ operatorMode0 = do
 
   return packs
 
-operatorMode1 :: Parsec String Int [Answer]
-operatorMode1 = do
+operatorMode1 :: Int -> Parsec String Int Answer
+operatorMode1 n = do
   numPackets <- binToInt <$> nbits 11
-  npackets numPackets
+  getNPackets numPackets
 
+
+getNPackets :: Int -> Parsec String Int Answer
+getNPackets n = do
+  if n==0
+    then return 0
+    else do
+      pack <- packet
+      (pack +) <$> (getNPackets (n-1))
 
 -- uses the internal state
-getPacketsUntilBitLength :: Int -> Parsec String Int [Answer]
+getPacketsUntilBitLength :: Int -> Parsec String Int Answer
 getPacketsUntilBitLength n = do
   cumsum <- getState
   if cumsum == n
-    then return []
+    then return 0
     else do
       pack <- packet
-      (pack:) <$> getPacketsUntilBitLength n
+      (pack +) <$> getPacketsUntilBitLength n
 
-npackets 0 = return []
+npackets 0 = return 0
 npackets n = do
   pack <- packet
-  (pack:) <$> npackets (n-1)
+  (pack +) <$> npackets (n-1)
 
 nbits 0 = return ""
 nbits n = do
