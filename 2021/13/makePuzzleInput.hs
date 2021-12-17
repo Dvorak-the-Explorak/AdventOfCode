@@ -16,6 +16,9 @@ import BigFont
 type Coord = (Int,Int)
 type Points = Set Coord
 
+
+centeredFolds = False
+
 main = do
   args <- getArgs
 
@@ -62,7 +65,7 @@ unfoldVertical points = do
   let flippedPoint (x,y) = (2*pos - x, y)
 
   let unfoldPoint (p,rand) = 
-        if rand < 1/4 
+        if rand < 1/4 || (centeredFolds && fst p == 0)
           then [p]
           else if rand < 1/2
             then [flippedPoint p]
@@ -81,8 +84,10 @@ unfoldHorizontal points = do
 
   let flippedPoint (x,y) = (x, 2*pos - y)
 
+
+
   let unfoldPoint (p,rand) = 
-        if rand < 1/4
+        if rand < 1/4 || (centeredFolds && snd p == 0)
           then [p]
           else if rand < 1/2
             then [flippedPoint p]
