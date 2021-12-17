@@ -28,8 +28,6 @@ type Answer = Int
 part1 = True
 
 main = do
-  val <- parseBinary "110101"
-
   vals <- getAnswer
   print vals
 
@@ -51,8 +49,6 @@ parseBinary input = do
     (Left err) -> fail $ show err
     (Right answer) -> return answer
 
-
-
 decodeHex :: Char -> String
 decodeHex '0' = "0000"
 decodeHex '1' = "0001"
@@ -70,6 +66,8 @@ decodeHex 'C' = "1100"
 decodeHex 'D' = "1101"
 decodeHex 'E' = "1110"
 decodeHex 'F' = "1111"
+-- remove anything that isn't hex
+decodeHex x = ""
 
 
 binToInt :: String -> Int
@@ -85,7 +83,7 @@ puzzle :: Parsec String Int Answer
 puzzle = do
   result <- packet
   many zero
-  eof
+  end
   return result
 
 packet :: Parsec String Int Answer
@@ -234,13 +232,9 @@ bit =  flip (<?>) "bit" $ do
   modifyState (+1)
   return b
 
-
-
-
 -- commonly used
 
 integer :: Parser Int
 integer = read <$> many1 digit
 
-end :: Parser ()
 end = (endOfLine >> return ()) <|> eof

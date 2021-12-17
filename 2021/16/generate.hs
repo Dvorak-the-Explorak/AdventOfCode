@@ -188,7 +188,7 @@ binToInt = foldl' (\acc x -> acc*2 + digitToInt x) 0
 
 
 
-expression = (Number <$> integer) <|> 
+expression = try numExp <|> 
               try sumExp <|> 
               try prodExp <|>
               try minExp <|>
@@ -197,7 +197,12 @@ expression = (Number <$> integer) <|>
               try gtExp <|>
               try eqExp
 
-
+numExp = Number <$> (integer <|> do
+                          bracket <- oneOf "({[<"
+                          val <- integer
+                          close bracket
+                          return val
+                        )
 
 sumExp = SumExp <$> bracketed '+'
 prodExp = ProdExp <$> bracketed '*'
@@ -209,24 +214,28 @@ gtExp = GTExp <$> pair '>'
 eqExp = EQExp <$> pair '='
 
 bracketed sep = do
-  char '('
+  bracket <- oneOf "({[<"
   first <- expression
   char sep
   rest <- sepBy expression (char sep)
-  char ')'
+  close bracket
   return $ first :| rest
 
 pair sep = do
-  char '('
+  bracket <- oneOf "({[<"
   x <- expression
   char sep
   y <- expression
-  char ')'
+  close bracket
   return (x,y)
 
+close :: Char -> Parser Char
+close '(' = char ')'
+close '[' = char ']'
+close '{' = char '}'
+close '<' = char '>'
 
 -- commonly used
-
 integer :: Parser Int
 integer = read <$> many1 digit
 
