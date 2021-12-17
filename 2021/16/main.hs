@@ -10,6 +10,9 @@ import Data.Char (digitToInt)
 import GHC.Integer
 
 import Data.List (foldl', foldl1)
+import qualified Data.List.NonEmpty as NE
+import Data.List.NonEmpty ( NonEmpty( (:|) ), (<|) ) 
+
 -- import Helpers (chain)
 
 
@@ -18,6 +21,7 @@ ttrace x = trace (show x) x
 
 -- example
 
+type NE = NE.NonEmpty
 type Answer = Int
 
 
@@ -79,14 +83,16 @@ packet = do
 
   -- switch on type ID
   case t of
-    0 -> getSum . mconcat . map Sum <$> operator
-    1 -> getProduct . mconcat . map Product <$> operator
-    2 -> foldl1 min <$> operator 
-    3 -> foldl1 max <$> operator
+    -- all total on NonEmpty
+    0 -> sum <$> operator
+    1 -> product <$> operator
+    2 -> minimum <$> operator 
+    3 -> maximum <$> operator
     4 -> binToInt <$> literal
-    5 -> (\(x:y:xs) -> if x>y then 1 else 0) <$> operator
-    6 -> (\(x:y:xs) -> if x<y then 1 else 0) <$> operator
-    7 -> (\(x:y:xs) -> if x==y then 1 else 0) <$> operator
+    -- These still have incomplete patterns...
+    5 -> (\(x:|(y:xs)) -> if x>y then 1 else 0) <$> operator
+    6 -> (\(x:|(y:xs)) -> if x<y then 1 else 0) <$> operator
+    7 -> (\(x:|(y:xs)) -> if x==y then 1 else 0) <$> operator
     n -> fail $ "Unknown operator typeID: " ++ show n 
 
 
@@ -106,7 +112,7 @@ moreBlocks = do
 
 
 
-operator :: Parsec String Int [Answer]
+operator :: Parsec String Int (NE Answer)
 operator = flip (<?>) "operator" $ do
   mode <- bit
 
@@ -115,42 +121,62 @@ operator = flip (<?>) "operator" $ do
     '1' -> operatorMode1
 
 
--- #TODO make this return a (NonEmpty Answer) instead of [Answer]
+binOperator :: Parsec String Int (Answer, Answer)
+binOperator = flip (<?>) "operator" $ do
+  mode <- bit
+
+  case mode of
+    '0' -> do
+      bitsExpected <- binToInt <$> nbits 15
+      --
+
+      result <- (,) <$> packet <*> packet
+      return result
+
+    '1' -> do
+      binToInt <$> nbits 11 -- 
+      result <- (,) <$> packet <*> packet
+
+      return result
+
+
+
 -- #TODO actually could abstract over the monoid used for the answer
-operatorMode0 :: Parsec String Int [Answer]
+operatorMode0 :: Parsec String Int (NE Answer)
 operatorMode0 = do
   packetsTotalLength <- binToInt <$> nbits 15
-  
-  bitsSoFar <- getState
-  putState 0
+  getPacketsUntilBitLength packetsTotalLength
 
-  packs <- getPacketsUntilBitLength packetsTotalLength
-
-  -- make sure the bit count persists
-  putState (bitsSoFar + packetsTotalLength)
-
-  return packs
-
-operatorMode1 :: Parsec String Int [Answer]
+operatorMode1 :: Parsec String Int (NE Answer)
 operatorMode1 = do
   numPackets <- binToInt <$> nbits 11
   npackets numPackets
 
 
 -- uses the internal state
-getPacketsUntilBitLength :: Int -> Parsec String Int [Answer]
+getPacketsUntilBitLength :: Int -> Parsec String Int (NE Answer)
 getPacketsUntilBitLength n = do
-  cumsum <- getState
-  if cumsum == n
-    then return []
-    else do
-      pack <- packet
-      (pack:) <$> getPacketsUntilBitLength n
+                              bitsSoFar <- getState
+                              putState 0
 
-npackets 0 = return []
+                              packs <- go n
+
+                              -- make sure the bit count persists
+                              putState (bitsSoFar + n)
+                              return packs
+  where go n = do
+        pack <- packet
+
+        cumsum <- getState
+        case compare cumsum n of
+          EQ -> return $ pack :| []
+          LT -> (pack <|) <$> go n
+          GT -> fail $ "Parsed " ++ show cumsum ++ " bits trying to parse exactly " ++ show n
+
+npackets 1 = (:| []) <$> packet
 npackets n = do
   pack <- packet
-  (pack:) <$> npackets (n-1)
+  (pack <|) <$> npackets (n-1)
 
 nbits 0 = return ""
 nbits n = do
