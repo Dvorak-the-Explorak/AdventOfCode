@@ -1,6 +1,8 @@
 import Text.ParserCombinators.Parsec hiding (State)
 import Text.Parsec.Char
 
+import Data.Maybe
+
 import Data.List (foldl')
 -- import Helpers (chain)
 import Debug.Trace
@@ -54,14 +56,16 @@ solve1 region@((xmin,xmax), (ymin,ymax)) = result
 
     tri n = n*(n+1) `div` 2
 
+
 solve2 :: PuzzleInput -> Int
 solve2 region@((xmin,xmax), (ymin,ymax)) = length $ filter hits velocities
   where
     hits = (==Hit) . getResult
     results = map getResult velocities
-    getResult = runUntilResult (getHitOrMiss region) . start 
+    getResult = runUntilResult step (getHitOrMiss region) . start 
     start vel = ((0,0), vel)
     velocities = [(x,y) | x <- [0..xmax], y <- [ymin..(1-ymin)]]
+
 
 getHitOrMiss :: PuzzleInput -> Phase -> Maybe Result
 getHitOrMiss (xrange, yrange) ((x,y), (u,v)) = result
@@ -84,11 +88,11 @@ step ((x,y), (u,v)) = ((x',y'), (u',v'))
     u' = u - signum u
     v' = v - 1
 
-runUntilResult :: (Phase -> Maybe Result) -> Phase -> Result
-runUntilResult get phase = 
-  case get phase of
-    Nothing -> runUntilResult get $ step phase
-    Just result -> result
+
+runUntilResult :: (a -> a) -> (a -> Maybe Result) -> a -> Result
+runUntilResult step get phase = head $ catMaybes $ map get $ iterate step phase
+
+
 
 
 
