@@ -28,6 +28,8 @@ type Answer = Int
 part1 = True
 
 main = do
+  val <- parseBinary "110101"
+
   vals <- getAnswer
   print vals
 
@@ -39,6 +41,16 @@ getAnswer = do
   case parseResult of
     (Left err) -> fail $ show err
     (Right answer) -> return answer
+
+-- basically solve
+parseBinary :: String -> IO Answer
+parseBinary input = do
+  input <- getContents
+  let parseResult = runParser puzzle 0 "(unknown)" input
+  case parseResult of
+    (Left err) -> fail $ show err
+    (Right answer) -> return answer
+
 
 
 decodeHex :: Char -> String
@@ -90,9 +102,9 @@ packet = do
     3 -> maximum <$> operator
     4 -> binToInt <$> literal
     -- These still have incomplete patterns...
-    5 -> (\(x:|(y:xs)) -> if x>y then 1 else 0) <$> operator
-    6 -> (\(x:|(y:xs)) -> if x<y then 1 else 0) <$> operator
-    7 -> (\(x:|(y:xs)) -> if x==y then 1 else 0) <$> operator
+    5 -> (\(x,y) -> if x>y then 1 else 0) <$> binOperator
+    6 -> (\(x,y) -> if x<y then 1 else 0) <$> binOperator
+    7 -> (\(x,y) -> if x==y then 1 else 0) <$> binOperator
     n -> fail $ "Unknown operator typeID: " ++ show n 
 
 
@@ -111,66 +123,82 @@ moreBlocks = do
   (first++) <$> litBlocks
 
 
-
 operator :: Parsec String Int (NE Answer)
 operator = flip (<?>) "operator" $ do
   mode <- bit
 
   case mode of
-    '0' -> operatorMode0
-    '1' -> operatorMode1
+    '0' -> do
+            packetsTotalLength <- binToInt <$> nbits 15
+            getPacketsUntilBitLength packetsTotalLength
+    '1' -> do
+            numPackets <- binToInt <$> nbits 11
+            npackets numPackets
 
 
+-- returns exactly 2 results, but still checks the length parameter
 binOperator :: Parsec String Int (Answer, Answer)
 binOperator = flip (<?>) "operator" $ do
   mode <- bit
 
   case mode of
     '0' -> do
+      -- get the length parameter
       bitsExpected <- binToInt <$> nbits 15
-      --
 
+      -- remember the count before reading the packets
+      countBefore <- getState
+
+      -- get the 2 packets
       result <- (,) <$> packet <*> packet
+
+      -- get the length of the 2 packets as (the current bit count - the count before)
+      bitLength <- (subtract countBefore) <$> getState
+
+      -- verify length parameter
+      when (bitLength /= bitsExpected) $ 
+            fail $ "Binary operator operands took " ++ show bitLength ++ " bits, " ++ 
+                  " but length parameter indicated " ++ show bitsExpected ++ "."
+
       return result
 
     '1' -> do
-      binToInt <$> nbits 11 -- 
-      result <- (,) <$> packet <*> packet
+      -- get the length parameter
+      packetCount <- binToInt <$> nbits 11
 
-      return result
+      -- validate length paramter
+      when (packetCount /= 2) $ fail $ "Binary operator asked for " ++ show packetCount ++ " packets."
+
+      -- get the 2 packets
+      (,) <$> packet <*> packet
 
 
+withZeroedCounter :: Parsec String Int a -> Parsec String Int a
+withZeroedCounter p = do
+  -- Save current count
+  bitsSoFar <- getState
 
--- #TODO actually could abstract over the monoid used for the answer
-operatorMode0 :: Parsec String Int (NE Answer)
-operatorMode0 = do
-  packetsTotalLength <- binToInt <$> nbits 15
-  getPacketsUntilBitLength packetsTotalLength
+  -- Zero the counter
+  putState 0
 
-operatorMode1 :: Parsec String Int (NE Answer)
-operatorMode1 = do
-  numPackets <- binToInt <$> nbits 11
-  npackets numPackets
+  result <- p
+
+  -- Add the count we removed back in
+  modifyState (+bitsSoFar)
+
+  return result
 
 
 -- uses the internal state
 getPacketsUntilBitLength :: Int -> Parsec String Int (NE Answer)
-getPacketsUntilBitLength n = do
-                              bitsSoFar <- getState
-                              putState 0
-
-                              packs <- go n
-
-                              -- make sure the bit count persists
-                              putState (bitsSoFar + n)
-                              return packs
-  where go n = do
+getPacketsUntilBitLength n = withZeroedCounter go 
+  where go = do
         pack <- packet
 
         cumsum <- getState
         case compare cumsum n of
           EQ -> return $ pack :| []
-          LT -> (pack <|) <$> go n
+          LT -> (pack <|) <$> go
           GT -> fail $ "Parsed " ++ show cumsum ++ " bits trying to parse exactly " ++ show n
 
 npackets 1 = (:| []) <$> packet
