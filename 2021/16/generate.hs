@@ -81,7 +81,8 @@ encodeBITS version (Number n) = versionBinary ++ typeIDBinary ++ val
 
 
     padFirstBlock ([], xs) = xs
-    padFirstBlock (extras, xs) = padToLength 5 extras ++ xs
+    padFirstBlock (extras, []) = "0" ++ padToLength 4 extras ++ xs
+    padFirstBlock (extras, xs) = "1" ++ padToLength 4 extras ++ xs
     -- make last block
     makeBlock x1 (block@(x2:x3:x4:[]), []) = ([], '0':x1:x2:x3:x4:[])
     makeBlock x (block, []) = (x:block, [])
