@@ -53,7 +53,7 @@ solve1 grid = case result of
                 Nothing -> (-1)
                 Just n -> n
   where
-    result = dijk2 getAdj pq visited bottomRight
+    result = dijk getAdj pq visited bottomRight
     getAdj = adjacentPQMapGrid (gridToMapGrid grid)
     -- getAdj = adjacentPQ grid
 
@@ -113,37 +113,10 @@ incGrid :: Grid -> Grid
 incGrid = map (map (\x -> 1 + (x `mod` 9)))
 
 
-dijk :: Grid -> PQ Node -> Set Coord -> Coord -> Maybe Int
-dijk grid pq visited end = do
-    (Node (coord, dist), pq') <- PQ.minView pq
-    -- let dist' = 
-    let visited' = Set.insert coord visited
-
-
-    if coord == end 
-      then Just dist
-      else if coord `Set.member` visited
-        then dijk grid pq' visited end
-        else dijk grid (addAdjacent grid coord dist pq') visited' end
-
-dijkMapGrid :: MapGrid -> PQ Node -> Set Coord -> Coord -> Maybe Int
-dijkMapGrid grid@(MapGrid s g) pq visited end = do
-    (Node (coord, dist), pq') <- PQ.minView pq
-    -- let dist' = 
-    let visited' = Set.insert coord visited
-
-
-    if coord == end 
-      then trace (showVisited s visited) $ Just dist
-      else if coord `Set.member` visited
-        then dijkMapGrid grid pq' visited end
-        else dijkMapGrid grid (addAdjacentMapGrid grid coord dist pq') visited' end
-
-
 -- Abstracts over the specific grid type, 
 --  user specifies a function to get the adjacent 
-dijk2 :: (Coord -> Int ->  PQ Node) -> PQ Node -> Set Coord -> Coord -> Maybe Int
-dijk2 getAdj pq visited end = do
+dijk :: (Coord -> Int ->  PQ Node) -> PQ Node -> Set Coord -> Coord -> Maybe Int
+dijk getAdj pq visited end = do
     (Node (coord, dist), pq') <- PQ.minView pq
     -- let dist' = 
     let visited' = Set.insert coord visited
@@ -152,22 +125,13 @@ dijk2 getAdj pq visited end = do
     if coord == end 
       then Just dist
       else if coord `Set.member` visited
-        then dijk2 getAdj pq' visited end
-        else dijk2 getAdj (PQ.union pq' $ getAdj coord dist) visited' end
-
-
+        then dijk getAdj pq' visited end
+        else dijk getAdj (PQ.union pq' $ getAdj coord dist) visited' end
 
 -- rows,cols
 size :: Grid -> (Int,Int)
 size [] = (0,0)
 size grid = (length grid, length $ head grid)
-
-addAdjacent :: Grid ->  Coord -> Int -> PQ Node -> PQ Node
-addAdjacent grid coord distToCoord pq = PQ.union pq $ adjacentPQ grid coord distToCoord
-
-addAdjacentMapGrid :: MapGrid ->  Coord -> Int -> PQ Node -> PQ Node
-addAdjacentMapGrid grid coord distToCoord pq = PQ.union pq $ adjacentPQMapGrid grid coord distToCoord
-
 
 getGridVal :: [[a]] -> Coord -> a
 getGridVal grid (row,col) = (grid !! row) !! col
@@ -179,8 +143,6 @@ setGridVal (m,n) x grid = result
     (preVals, (_:postVals)) = splitAt n theRow
     newRow = preVals ++ x:postVals
     result = preRows ++ newRow:postRows
-
-
 
 adjacentPQ :: Grid -> Coord -> Int ->  PQ Node
 adjacentPQ grid coord distToCoord = PQ.fromList $ map makeNode $ adjacent grid coord
@@ -194,6 +156,7 @@ adjacentPQ grid coord distToCoord = PQ.fromList $ map makeNode $ adjacent grid c
 adjacentPQMapGrid :: MapGrid -> Coord -> Int ->  PQ Node
 adjacentPQMapGrid grid@(MapGrid s g) coord distToCoord = PQ.fromList $ map makeNode $ adjacentMapGrid grid coord
   where
+    -- we're only going to call this on valid coords, because they come from the adjacentMapGrid function
     risk c = fromJust $ Map.lookup c g -- Coord -> Int
 
     getVal c = risk c + distToCoord
