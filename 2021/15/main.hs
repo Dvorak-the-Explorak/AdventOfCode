@@ -53,9 +53,12 @@ solve1 grid = case result of
                 Nothing -> (-1)
                 Just n -> n
   where
-    result = dijk2 (gridToMapGrid grid) pq visited bottomRight
+    result = dijk2 getAdj pq visited bottomRight
+    getAdj = adjacentPQMapGrid (gridToMapGrid grid)
+    -- getAdj = adjacentPQ grid
+
     visited = Set.empty
-    pq = adjacentPQ grid topLeft 0
+    pq = getAdj topLeft 0
     (m,n) = size grid
     topLeft = (0,0)
     bottomRight = (m-1,n-1)
@@ -123,8 +126,8 @@ dijk grid pq visited end = do
         then dijk grid pq' visited end
         else dijk grid (addAdjacent grid coord dist pq') visited' end
 
-dijk2 :: MapGrid -> PQ Node -> Set Coord -> Coord -> Maybe Int
-dijk2 grid@(MapGrid s g) pq visited end = do
+dijkMapGrid :: MapGrid -> PQ Node -> Set Coord -> Coord -> Maybe Int
+dijkMapGrid grid@(MapGrid s g) pq visited end = do
     (Node (coord, dist), pq') <- PQ.minView pq
     -- let dist' = 
     let visited' = Set.insert coord visited
@@ -133,10 +136,24 @@ dijk2 grid@(MapGrid s g) pq visited end = do
     if coord == end 
       then trace (showVisited s visited) $ Just dist
       else if coord `Set.member` visited
-        then dijk2 grid pq' visited end
-        else dijk2 grid (addAdjacentMapGrid grid coord dist pq') visited' end
+        then dijkMapGrid grid pq' visited end
+        else dijkMapGrid grid (addAdjacentMapGrid grid coord dist pq') visited' end
 
 
+-- Abstracts over the specific grid type, 
+--  user specifies a function to get the adjacent 
+dijk2 :: (Coord -> Int ->  PQ Node) -> PQ Node -> Set Coord -> Coord -> Maybe Int
+dijk2 getAdj pq visited end = do
+    (Node (coord, dist), pq') <- PQ.minView pq
+    -- let dist' = 
+    let visited' = Set.insert coord visited
+
+
+    if coord == end 
+      then Just dist
+      else if coord `Set.member` visited
+        then dijk2 getAdj pq' visited end
+        else dijk2 getAdj (PQ.union pq' $ getAdj coord dist) visited' end
 
 
 
