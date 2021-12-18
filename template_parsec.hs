@@ -63,9 +63,9 @@ row = many1 integer <* end
 -- commonly used
 
 integer :: Parser Int
-integer = read <$> do
+integer = do
   negative <- optionMaybe $ char '-'
-  absValue <- many1 digit
+  absValue <- read <$> many1 digit
   case negative of 
     Nothing -> return absValue
     Just _ -> return $ -absValue
