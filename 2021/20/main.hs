@@ -83,7 +83,7 @@ decodeImage :: Encoding -> Grid Char -> Grid Char
 decodeImage enc grid = mapKernel (decodeKernel enc) $ pad '0' grid
 
 decodeImageMemo :: Encoding -> Grid Char -> State EncodingMap (Grid Char)
-decodeImageMemo enc grid = mapKernelT (decodeKernelMemo enc) $ pad '0' grid
+decodeImageMemo enc grid = mapKernelT (decodeKernelMemo enc) $ pad '0' $ pad '0' grid
 
 
 step :: Int -> Encoding -> Grid Char -> Grid Char
@@ -95,8 +95,6 @@ doubleStep 0 enc g = return g
 doubleStep n enc g = do
   g' <- decodeImageMemo enc g
   doubleStep (n-1) enc g'
-
-
 
 
 
