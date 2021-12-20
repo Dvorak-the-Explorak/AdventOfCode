@@ -22,16 +22,6 @@ type Image = Grid Char
 type Encoding = Vec Char
 
 
--- =====================================================
-
--- I want to be able to update the two-step encoding map
---  as I go, but I think I need to feed a State monad
---  through my grid kernel thing...
-
--- =====================================================
-
-
-
 
 
 part1 = True
@@ -60,13 +50,13 @@ getPuzzleInput = do
 solve1 (enc, input) = num1s
   where 
     num1s = sum $ map (length . filter (=='1')) $ getGrid grid'
-    grid' = step 2 enc input
+    grid' = doubleStep 2 enc input
 
 -- solve2 :: PuzzleInput -> Int
 solve2 (enc, input) = num1s
   where 
     num1s = sum $ map (length . filter (=='1')) $ getGrid grid'
-    grid' = step 50 enc input
+    grid' = doubleStep 50 enc input
 
 
 
@@ -82,13 +72,14 @@ step :: Int -> Encoding -> Grid Char -> Grid Char
 step 0 enc g = g
 step n enc g = step (n-1) enc $ decodeImage enc g
 
-doubleStep :: Encoding -> EncodingMap -> Grid Char -> Grid Char
-doubleStep enc twoStep g = result
-  where
-    (twoStep', result)
+doubleStep :: Int -> Encoding -> Grid Char -> Grid Char
+doubleStep 0 enc g = g
+doubleStep 1 enc g = step 1 enc g
+doubleStep n enc g = doubleStep (n-2) enc $ mapKernel (decodeTwoStepKernel enc) $ doublePad g
 
 
-
+doublePad :: Grid Char -> Grid Char
+doublePad grid = pad '0' $ pad '0' grid
 
 
 pad :: a -> Grid a -> Grid a
@@ -102,6 +93,9 @@ pad val grid@(Grid vals) = (Grid $ [newRow] ++ vals' ++ [newRow])
 decodeKernel :: Encoding -> Kernel Char Char
 decodeKernel enc = \getVal coord -> (enc !) $ indexKernel getVal coord
 
+-- assume grid is padded with 1 layer of the "infinite sea" value
+decodeTwoStepKernel :: Encoding -> Kernel Char Char
+decodeTwoStepKernel enc = \getVal coord -> calcTwoStep enc $ map (map (maybe '0' id . getVal)) $ fiveSquare coord
 
 indexKernel :: Kernel Char Int
 indexKernel = \getVal coord -> binToInt $ map (maybe '0' id . getVal) $ squareKernel coord
@@ -110,22 +104,8 @@ binToInt :: String -> Int
 binToInt = foldl' (\acc x -> acc*2 + digitToInt x) 0
 
 
-type EncodingMap = Map [Char] Char
-
-calcTwoStep :: Encoding -> [Char] -> Char
+calcTwoStep :: Encoding -> [[Char]] -> Char
 calcTwoStep enc input = result
   where
-    result = getIndex (center, center) grid
-    grid = naiveStep 2 enc $ Grid input
-    center = (height grid) `div` 2
-
-twoStepEncoding :: EncodingMap -> Encoding -> [Char] -> (EncodingMap, Char)
-twoStepEncoding memo encoding input = 
-  case Map.lookup input memo of
-    Just x -> (memo, x)
-    Nothing -> (memo', result)
-  where
-    memo' = Map.insert input result memo
-    result = calcTwoStep enc input
-
-
+    result = getIndex (2, 2) grid
+    grid = mapKernel (decodeKernel enc) $ mapKernel (decodeKernel enc) $ Grid input

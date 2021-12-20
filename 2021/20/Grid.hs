@@ -62,6 +62,11 @@ allAdjacent x = map ($x) [up.left, up, up.right, left, right, down.left, down, d
 
 squareKernel x = map ($x) [up.left, up, up.right, left, id, right, down.left, down, down.right] 
 
+fiveSquare x = [[f (g x) | f <- row] | g <- col]
+  where
+    row = [left.left, left, id, right, right.right] 
+    col = [up.up, up, id, down, down.down]
+
 simpleKernel :: (a -> b) -> Kernel a b
 simpleKernel f = \getVal coord -> f $ getJust $ getVal coord
 -- simpleKernel f = fmap f <$>
