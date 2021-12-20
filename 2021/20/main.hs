@@ -3,14 +3,14 @@ import Data.Char (digitToInt)
 import qualified Data.Vector as V
 -- import Helpers (chain)
 
+import qualified Data.HashMap.Strict as Map
+
 import Grid
-
-
 
 import Debug.Trace
 ttrace x = trace (show x) x
 
-
+type Map = Map.HashMap
 type Vec = V.Vector
 
 
@@ -20,6 +20,18 @@ type PuzzleInput = (Encoding, Image)
 type Image = Grid Char
 
 type Encoding = Vec Char
+
+
+-- =====================================================
+
+-- I want to be able to update the two-step encoding map
+--  as I go, but I think I need to feed a State monad
+--  through my grid kernel thing...
+
+-- =====================================================
+
+
+
 
 
 part1 = True
@@ -66,36 +78,18 @@ decodeImage :: Encoding -> Grid Char -> Grid Char
 decodeImage enc grid = mapKernel (decodeKernel enc) $ pad '0' grid
 
 
-naiveStep :: Int -> Encoding -> Grid Char -> Grid Char
-naiveStep 0 enc g = g
-naiveStep n enc g = naiveStep (n-1) enc $ decodeImage enc g
-
-
--- reverses the encoding every step, as each step the board silently flips
-toggleStep :: Int -> Encoding -> Grid Char -> Grid Char
-toggleStep 0 enc g = g
-toggleStep n enc g = toggleStep (n-1) (V.reverse $ flipEncoding enc) $ decodeImage enc g
-
-
 step :: Int -> Encoding -> Grid Char -> Grid Char
 step 0 enc g = g
-step n enc g = case (V.head enc, V.last enc) of
-  -- sea always 0, no modifications
-  ('0', _) -> naiveStep n enc g
-  -- sea alternates between 0 and 1
-  ('1', '0') -> (if n `mod` 2 == 1 then flipGrid else id)  $ toggleStep (n-1) (V.reverse enc) $ decodeImage (flipEncoding enc) g
-  -- sea stays at 1.  
-  ('1', '1') -> undefined -- not sure if the line below is accurate
-  -- ('1', '1') -> flipGrid $ naiveStep (n-1) (V.reverse $ flipEncoding enc) $ decodeImage (flipEncoding enc) g
+step n enc g = step (n-1) enc $ decodeImage enc g
+
+doubleStep :: Encoding -> EncodingMap -> Grid Char -> Grid Char
+doubleStep enc twoStep g = result
+  where
+    (twoStep', result)
 
 
-flipEncoding :: Vec Char -> Vec Char
-flipEncoding = V.map flipPixel
 
-flipGrid = fmap flipPixel
 
-flipPixel '0' = '1'
-flipPixel '1' = '0'
 
 pad :: a -> Grid a -> Grid a
 pad val grid@(Grid vals) = (Grid $ [newRow] ++ vals' ++ [newRow])
@@ -108,9 +102,30 @@ pad val grid@(Grid vals) = (Grid $ [newRow] ++ vals' ++ [newRow])
 decodeKernel :: Encoding -> Kernel Char Char
 decodeKernel enc = \getVal coord -> (enc !) $ indexKernel getVal coord
 
+
 indexKernel :: Kernel Char Int
 indexKernel = \getVal coord -> binToInt $ map (maybe '0' id . getVal) $ squareKernel coord
 
 binToInt :: String -> Int
 binToInt = foldl' (\acc x -> acc*2 + digitToInt x) 0
+
+
+type EncodingMap = Map [Char] Char
+
+calcTwoStep :: Encoding -> [Char] -> Char
+calcTwoStep enc input = result
+  where
+    result = getIndex (center, center) grid
+    grid = naiveStep 2 enc $ Grid input
+    center = (height grid) `div` 2
+
+twoStepEncoding :: EncodingMap -> Encoding -> [Char] -> (EncodingMap, Char)
+twoStepEncoding memo encoding input = 
+  case Map.lookup input memo of
+    Just x -> (memo, x)
+    Nothing -> (memo', result)
+  where
+    memo' = Map.insert input result memo
+    result = calcTwoStep enc input
+
 
