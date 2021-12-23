@@ -53,14 +53,25 @@ instance Hashable Burrow where
 instance Show Burrow where
   show (Burrow  l1 l2 a g1 b g2 c g3 d r1 r2) = 
       "#############\n"
-    ++"#" ++ showSpot l1 ++ showSpot l2 ++ "." ++ showSpot g1 ++ "." ++ showSpot g2 ++ "." ++ showSpot g3 ++ "." ++ showSpot r1 ++ showSpot r2 ++ "#\n"
-    ++"###" ++ secondPod a ++ "#" ++ secondPod b ++ "#" ++ secondPod c ++ "#" ++ secondPod d ++ "###\n"
-    ++"  #" ++ firstPod a ++ "#" ++ firstPod b ++ "#" ++ firstPod c ++ "#" ++ firstPod d ++ "#  \n"
+    ++"#" ++ showSpot l1 ++ showSpot l2 ++ "." ++ showSpot g1 ++ "." ++ showSpot g2 ++ "." ++ showSpot g3 ++ "." ++ showSpot r2 ++ showSpot r1 ++ "#\n"
+    ++"###" ++ getPod 3 a ++ "#" ++ getPod 3 b ++ "#" ++ getPod 3 c ++ "#" ++ getPod 3 d ++ "###\n"
+    ++"  #" ++ getPod 2 a ++ "#" ++ getPod 2 b ++ "#" ++ getPod 2 c ++ "#" ++ getPod 2 d ++ "#  \n"
+    ++"  #" ++ getPod 1 a ++ "#" ++ getPod 1 b ++ "#" ++ getPod 1 c ++ "#" ++ getPod 1 d ++ "#  \n"
+    ++"  #" ++ getPod 0 a ++ "#" ++ getPod 0 b ++ "#" ++ getPod 0 c ++ "#" ++ getPod 0 d ++ "#  \n"
     ++"  #########"
 
 showSpot :: Maybe Pod -> String
 showSpot Nothing = "."
 showSpot (Just x) = show x
+
+
+safeLast [] = Nothing
+safeLast xs = last xs
+
+getPod :: Int -> [Pod] -> String
+getPod n xs = if length (take (n+1) xs) <= n
+                then "."
+                else show $ xs !! (length xs - n - 1)
 
 firstPod [] = "."
 firstPod xs = show $ last xs
@@ -153,14 +164,6 @@ main = do
                 , right2 = Nothing
                 }
 
-  -- putStr "Part 1: "
-  -- let result1 = solve1 input
-  -- case result1 of
-  --   Nothing -> putStrLn "Couldn't find a solution"
-  --   Just (dist, path) -> do
-  --     mapM print $ reverse path
-  --     print dist
-
   putStr "Part 2: "
   let result2 = solve2 test2
   case result2 of
@@ -224,53 +227,60 @@ solve2 burrow = result
 
 
 
-options :: Node -> PQ Node
-options (Node curr dist) = result
-  where
-    result = PQ.fromList $ map (addCost dist) adj
+-- options :: Node -> PQ Node
+-- options (Node curr dist) = result
+--   where
+--     result = PQ.fromList $ map (addCost dist) adj
 
-    -- [Node]
-    adj = catMaybes $ map ($curr) moves
-    moves = [left1ToA, left1ToG1 >>> g1ToB, left1ToG1 >>> g1ToG2 >>> g2ToC
-                ,left1ToG1 >>> g1ToG2 >>> g2ToG3 >>> g3ToD
-            , left2ToA, left2ToG1 >>> g1ToB, left2ToG1 >>> g1ToG2 >>> g2ToC
-                ,left2ToG1 >>> g1ToG2 >>> g2ToG3 >>> g3ToD
-            , aToLeft1, aToLeft2, aToG1, aToG1 >>> g1ToG2, aToG1 >>> g1ToG2 >>> g2ToG3
-                , aToG1 >>> g1ToG2 >>> g2ToG3 >> g3ToRight1, aToG1 >>> g1ToG2 >>> g2ToG3 >> g3ToRight2
-            , g1ToA, g1ToB, g1ToG2 >>> g2ToC
-                , g1ToG2 >>> g2ToG3 >>> g3ToD
-            , bToG1 >>> g1ToLeft1, bToG1 >>> g1ToLeft2, bToG1, bToG2, bToG2 >>> g2ToG3
-                , bToG2 >>> g2ToG3 >>> g3ToRight1, bToG2 >>> g2ToG3 >>> g3ToRight2
-            , g2ToG1 >>> g1ToA, g2ToB, g2ToC
-                , g2ToG3 >>> g3ToD
-            , cToG2 >>> g2ToG1 >>> g1ToLeft1, cToG2 >>> g2ToG1 >>> g1ToLeft2, cToG2 >>> g2ToG1
-                , cToG2, cToG3, cToG3>>> g3ToRight1, cToG3>>> g3ToRight2
-            , g3ToG2 >>> g2ToG1 >>> g1ToA, g3ToG2 >>> g2ToB, g3ToC
-                , g3ToD
-            , dToG3 >>> g3ToG2 >>> g2ToG1 >>> g1ToLeft1, dToG3 >>> g3ToG2 >>> g2ToG1 >>> g1ToLeft2, dToG3 >>> g3ToG2 >>> g2ToG1
-                , dToG3 >>> g3ToG2, dToG3, dToRight1, dToRight2
-            , right1ToG3 >>> g3ToG2 >>> g2ToG1 >>> g1ToA, right1ToG3 >>> g3ToG2 >>> g2ToB, right1ToG3 >>> g3ToC
-                , right1ToD
-            , right2ToG3 >>> g3ToG2 >>> g2ToG1 >>> g1ToA, right2ToG3 >>> g3ToG2 >>> g2ToB, right2ToG3 >>> g3ToC
-                , right2ToD]
+--     -- [Node]
+--     adj = catMaybes $ map ($curr) moves
+--     moves = [left1ToA, left1ToG1 >>> g1ToB, left1ToG1 >>> g1ToG2 >>> g2ToC
+--                 ,left1ToG1 >>> g1ToG2 >>> g2ToG3 >>> g3ToD
+--             , left2ToA, left2ToG1 >>> g1ToB, left2ToG1 >>> g1ToG2 >>> g2ToC
+--                 ,left2ToG1 >>> g1ToG2 >>> g2ToG3 >>> g3ToD
+--             , aToLeft1, aToLeft2, aToG1, aToG1 >>> g1ToG2, aToG1 >>> g1ToG2 >>> g2ToG3
+--                 , aToG1 >>> g1ToG2 >>> g2ToG3 >> g3ToRight1, aToG1 >>> g1ToG2 >>> g2ToG3 >> g3ToRight2
+--             , g1ToA, g1ToB, g1ToG2 >>> g2ToC
+--                 , g1ToG2 >>> g2ToG3 >>> g3ToD
+--             , bToG1 >>> g1ToLeft1, bToG1 >>> g1ToLeft2, bToG1, bToG2, bToG2 >>> g2ToG3
+--                 , bToG2 >>> g2ToG3 >>> g3ToRight1, bToG2 >>> g2ToG3 >>> g3ToRight2
+--             , g2ToG1 >>> g1ToA, g2ToB, g2ToC
+--                 , g2ToG3 >>> g3ToD
+--             , cToG2 >>> g2ToG1 >>> g1ToLeft1, cToG2 >>> g2ToG1 >>> g1ToLeft2, cToG2 >>> g2ToG1
+--                 , cToG2, cToG3, cToG3>>> g3ToRight1, cToG3>>> g3ToRight2
+--             , g3ToG2 >>> g2ToG1 >>> g1ToA, g3ToG2 >>> g2ToB, g3ToC
+--                 , g3ToD
+--             , dToG3 >>> g3ToG2 >>> g2ToG1 >>> g1ToLeft1, dToG3 >>> g3ToG2 >>> g2ToG1 >>> g1ToLeft2, dToG3 >>> g3ToG2 >>> g2ToG1
+--                 , dToG3 >>> g3ToG2, dToG3, dToRight1, dToRight2
+--             , right1ToG3 >>> g3ToG2 >>> g2ToG1 >>> g1ToA, right1ToG3 >>> g3ToG2 >>> g2ToB, right1ToG3 >>> g3ToC
+--                 , right1ToD
+--             , right2ToG3 >>> g3ToG2 >>> g2ToG1 >>> g1ToA, right2ToG3 >>> g3ToG2 >>> g2ToB, right2ToG3 >>> g3ToC
+--                 , right2ToD]
 
-    addCost c (Node x d) = Node x (d+c)
+--     addCost c (Node x d) = Node x (d+c)
 
 
 
 optionsWithPath :: WithPath Node -> PQ (WithPath Node)
 optionsWithPath (WithPath ((Node curr dist), path)) = result
   where
+    -- invalid = filter toR2 $ map ($curr) moves
+
+    -- toR2 (Just (Node b _)) = right2 b /= Nothing && gap3 b == Nothing
+    -- toR2 _ = False
+    -- result = if gap3 curr /= Nothing && (not $ null invalid)
+    --           then trace ("INVALID" ++ show curr ++ show invalid) result'
+    --           else result'
     result = PQ.fromList $ map (addPath . addCost dist) adj
 
     -- [Node]12
     adj = catMaybes $ map ($curr) moves
     moves = [left1ToA, left1ToG1 >>> g1ToB, left1ToG1 >>> g1ToG2 >>> g2ToC
                 ,left1ToG1 >>> g1ToG2 >>> g2ToG3 >>> g3ToD
-            , left2ToA, left2ToG1 >>> g1ToB, left2ToG1 >>> g1ToG2 >>> g2ToC
+            , left2ToA, left2ToG1 >>> g1ToB, (left2ToG1 >>> g1ToG2) >>> g2ToC
                 ,left2ToG1 >>> g1ToG2 >>> g2ToG3 >>> g3ToD
             , aToLeft1, aToLeft2, aToG1, aToG1 >>> g1ToG2, aToG1 >>> g1ToG2 >>> g2ToG3
-                , aToG1 >>> g1ToG2 >>> g2ToG3 >> g3ToRight1, aToG1 >>> g1ToG2 >>> g2ToG3 >> g3ToRight2
+                , ((aToG1 >>> g1ToG2) >>> g2ToG3) >>> g3ToRight1, aToG1 >>> g1ToG2 >>> g2ToG3 >>> g3ToRight2
             , g1ToA, g1ToB, g1ToG2 >>> g2ToC
                 , g1ToG2 >>> g2ToG3 >>> g3ToD
             , bToG1 >>> g1ToLeft1, bToG1 >>> g1ToLeft2, bToG1, bToG2, bToG2 >>> g2ToG3
@@ -278,7 +288,7 @@ optionsWithPath (WithPath ((Node curr dist), path)) = result
             , g2ToG1 >>> g1ToA, g2ToB, g2ToC
                 , g2ToG3 >>> g3ToD
             , cToG2 >>> g2ToG1 >>> g1ToLeft1, cToG2 >>> g2ToG1 >>> g1ToLeft2, cToG2 >>> g2ToG1
-                , cToG2, cToG3, cToG3>>> g3ToRight1, cToG3>>> g3ToRight2
+                , cToG2, cToG3, cToG3 >>> g3ToRight1, cToG3 >>> g3ToRight2
             , g3ToG2 >>> g2ToG1 >>> g1ToA, g3ToG2 >>> g2ToB, g3ToC
                 , g3ToD
             , dToG3 >>> g3ToG2 >>> g2ToG1 >>> g1ToLeft1, dToG3 >>> g3ToG2 >>> g2ToG1 >>> g1ToLeft2, dToG3 >>> g3ToG2 >>> g2ToG1
@@ -286,7 +296,8 @@ optionsWithPath (WithPath ((Node curr dist), path)) = result
             , right1ToG3 >>> g3ToG2 >>> g2ToG1 >>> g1ToA, right1ToG3 >>> g3ToG2 >>> g2ToB, right1ToG3 >>> g3ToC
                 , right1ToD
             , right2ToG3 >>> g3ToG2 >>> g2ToG1 >>> g1ToA, right2ToG3 >>> g3ToG2 >>> g2ToB, right2ToG3 >>> g3ToC
-                , right2ToD]
+                , right2ToD
+            ]
 
     addCost c (Node x d) = Node x (d+c)
     addPath n = WithPath (n, (n:path))
@@ -295,19 +306,19 @@ optionsWithPath (WithPath ((Node curr dist), path)) = result
 
 
 
---  user specifies a function to get the adjacent 
-dijk :: (Node ->  PQ Node) -> PQ Node -> Set Burrow -> Burrow -> Maybe Int
-dijk getAdj pq visited end = do
-    (curr@(Node coord dist), pq') <- PQ.minView pq
-    -- let dist' = 
-    let visited' = Set.insert coord visited
+-- --  user specifies a function to get the adjacent 
+-- dijk :: (Node ->  PQ Node) -> PQ Node -> Set Burrow -> Burrow -> Maybe Int
+-- dijk getAdj pq visited end = do
+--     (curr@(Node coord dist), pq') <- PQ.minView pq
+--     -- let dist' = 
+--     let visited' = Set.insert coord visited
 
 
-    if coord == end 
-      then Just dist
-      else if coord `Set.member` visited
-        then dijk getAdj pq' visited end
-        else dijk getAdj (PQ.union pq' $ getAdj curr) visited' end
+--     if coord == end 
+--       then Just dist
+--       else if coord `Set.member` visited
+--         then dijk getAdj pq' visited end
+--         else dijk getAdj (PQ.union pq' $ getAdj curr) visited' end
 
 
 -- also returns the path
@@ -317,8 +328,8 @@ dijkWithPath getAdj pq visited end = do
     -- let dist' = 
     let visited' = Set.insert coord visited
 
-    let adjacencies = PQ.filter (\(WithPath (Node x _, _)) -> not $ x `Set.member` visited)  $ getAdj curr
-    -- adjacencies = getAdj curr
+    -- let adjacencies = PQ.filter (\(WithPath (Node x _, _)) -> not $ x `Set.member` visited)  $ getAdj curr
+    let adjacencies = getAdj curr
 
     if coord == end 
       then Just (dist, path)
@@ -330,6 +341,7 @@ dijkWithPath getAdj pq visited end = do
 
 
 -- Move  = Burrow -> Maybe Node
+infixl 5 >>>
 (>>>) :: Move -> Move -> Move
 (>>>) m1 m2 = \burrow -> do
   (Node burrow' cost1) <- m1 burrow
@@ -355,7 +367,7 @@ left1ToA = \burrow -> do
   when (not $ all (==A) $ roomA burrow) Nothing
   blockBy $ left2 burrow
   
-  let cost = stepCost pod * (4 - length (roomA burrow))
+  let cost = stepCost pod * (6 - length (roomA burrow))
   let burrow' = burrow
                 { left1 = Nothing
                 , roomA = pod:(roomA burrow)
@@ -368,7 +380,7 @@ left2ToA = \burrow -> do
   when (pod /= A) Nothing
   when (not $ all (==A) $ roomA burrow) Nothing
   
-  let cost = stepCost pod * (3 - length (roomA burrow))
+  let cost = stepCost pod * (5 - length (roomA burrow))
   let burrow' = burrow
                 { left2 = Nothing 
                 , roomA = pod:(roomA burrow)
@@ -405,7 +417,7 @@ aToG1 burrow = do
   pod <- safeHead $ roomA burrow
   blockBy $ gap1 burrow
   
-  let cost = stepCost pod * (4 - length (roomA burrow))
+  let cost = stepCost pod * (6 - length (roomA burrow))
   let burrow' = burrow
                 { roomA = (tail $ roomA burrow) 
                 , gap1 = Just pod
@@ -428,7 +440,7 @@ g1ToB = \burrow -> do
   when (pod /= B) Nothing
   when (not $ all (==B) $ roomB burrow) Nothing
 
-  let cost = stepCost pod * (3 - length (roomB burrow))
+  let cost = stepCost pod * (5 - length (roomB burrow))
   let burrow' = burrow
                 { gap1 = Nothing
                 , roomB = pod:(roomB burrow)
@@ -453,7 +465,7 @@ bToG2 burrow = do
   pod <- safeHead $ roomB burrow
   blockBy $ gap2 burrow
   
-  let cost = stepCost pod * (4 - length (roomB burrow))
+  let cost = stepCost pod * (6 - length (roomB burrow))
   let burrow' = burrow
                 { roomB = (tail $ roomB burrow) 
                 , gap2 = Just pod
@@ -477,7 +489,7 @@ g2ToC = \burrow -> do
   when (pod /= C) Nothing
   when (not $ all (==C) $ roomC burrow) Nothing
 
-  let cost = stepCost pod * (3 - length (roomC burrow))
+  let cost = stepCost pod * (5 - length (roomC burrow))
   let burrow' = burrow
                 { gap2 = Nothing
                 , roomC = pod:(roomC burrow)
@@ -502,7 +514,7 @@ cToG3 burrow = do
   pod <- safeHead $ roomC burrow
   blockBy $ gap3 burrow
   
-  let cost = stepCost pod * (4 - length (roomC burrow))
+  let cost = stepCost pod * (6 - length (roomC burrow))
   let burrow' = burrow
                 { roomC = (tail $ roomC burrow) 
                 , gap3 = Just pod
@@ -525,7 +537,7 @@ g3ToD = \burrow -> do
   when (pod /= D) Nothing
   when (not $ all (==D) $ roomD burrow) Nothing
 
-  let cost = stepCost pod * (3 - length (roomD burrow))
+  let cost = stepCost pod * (5 - length (roomD burrow))
   let burrow' = burrow
                 { gap3 = Nothing
                 , roomD = pod:(roomD burrow)
@@ -563,7 +575,7 @@ dToRight1 burrow = do
   blockBy $ right1 burrow
   blockBy $ right2 burrow
   
-  let cost = stepCost pod * (5 - length (roomD burrow))
+  let cost = stepCost pod * (7 - length (roomD burrow))
   let burrow' = burrow
                 { roomD = (tail $ roomD burrow) 
                 , right1 = Just pod
@@ -576,7 +588,7 @@ dToRight2 burrow = do
   pod <- safeHead $ roomD burrow
   blockBy $ right2 burrow
   
-  let cost = stepCost pod * (4 - length (roomD burrow))
+  let cost = stepCost pod * (6 - length (roomD burrow))
   let burrow' = burrow
                 { roomD = (tail $ roomD burrow) 
                 , right2 = Just pod
@@ -593,10 +605,10 @@ right1ToD = \burrow -> do
   when (pod /= D) Nothing
   when (not $ all (==D) $ roomD burrow) Nothing
 
-  let cost = stepCost pod * (4 - length (roomD burrow))
+  let cost = stepCost pod * (6 - length (roomD burrow))
   let burrow' = burrow
-                { roomD = pod:(roomD burrow)
-                , right1 = Nothing
+                { right1 = Nothing
+                , roomD = pod:(roomD burrow)
                 }
   return $ Node burrow' cost
 
@@ -607,10 +619,10 @@ right2ToD = \burrow -> do
   when (pod /= D) Nothing
   when (not $ all (==D) $ roomD burrow) Nothing
 
-  let cost = stepCost pod * (3 - length (roomD burrow))
+  let cost = stepCost pod * (5 - length (roomD burrow))
   let burrow' = burrow
-                { roomD = pod:(roomD burrow)
-                , right2 = Nothing
+                { right2 = Nothing
+                , roomD = pod:(roomD burrow)
                 }
   return $ Node burrow' cost
 
@@ -624,8 +636,8 @@ right1ToG3 = \burrow -> do
 
   let cost = stepCost pod * 3
   let burrow' = burrow
-                { gap3 = Just pod
-                , right1 = Nothing
+                { right1 = Nothing
+                , gap3 = Just pod
                 }
   return $ Node burrow' cost
 
@@ -636,8 +648,8 @@ right2ToG3 = \burrow -> do
 
   let cost = stepCost pod * 2
   let burrow' = burrow
-                { gap3 = Just pod
-                , right2 = Nothing
+                { right2 = Nothing
+                , gap3 = Just pod
                 }
   return $ Node burrow' cost
 
@@ -647,7 +659,7 @@ dToG3 burrow = do
   pod <- safeHead $ roomD burrow
   blockBy $ gap3 burrow
   
-  let cost = stepCost pod * (4 - length (roomD burrow))
+  let cost = stepCost pod * (6 - length (roomD burrow))
   let burrow' = burrow
                 { roomD = (tail $ roomD burrow) 
                 , gap3 = Just pod
@@ -670,7 +682,7 @@ g3ToC = \burrow -> do
   when (pod /= C) Nothing
   when (not $ all (==C) $ roomC burrow) Nothing
 
-  let cost = stepCost pod * (3 - length (roomC burrow))
+  let cost = stepCost pod * (5 - length (roomC burrow))
   let burrow' = burrow
                 { gap3 = Nothing
                 , roomC = pod:(roomC burrow)
@@ -694,7 +706,7 @@ cToG2 burrow = do
   pod <- safeHead $ roomC burrow
   blockBy $ gap2 burrow
   
-  let cost = stepCost pod * (4 - length (roomC burrow))
+  let cost = stepCost pod * (6 - length (roomC burrow))
   let burrow' = burrow
                 { roomC = (tail $ roomC burrow) 
                 , gap2 = Just pod
@@ -715,7 +727,7 @@ g2ToB = \burrow -> do
   when (pod /= B) Nothing
   when (not $ all (==B) $ roomB burrow) Nothing
 
-  let cost = stepCost pod * (3 - length (roomB burrow))
+  let cost = stepCost pod * (5 - length (roomB burrow))
   let burrow' = burrow
                 { gap2 = Nothing
                 , roomB = pod:(roomB burrow)
@@ -739,7 +751,7 @@ bToG1 burrow = do
   pod <- safeHead $ roomB burrow
   blockBy $ gap1 burrow
   
-  let cost = stepCost pod * (4 - length (roomB burrow))
+  let cost = stepCost pod * (6 - length (roomB burrow))
   let burrow' = burrow
                 { roomB = (tail $ roomB burrow) 
                 , gap1 = Just pod
@@ -762,7 +774,7 @@ g1ToA = \burrow -> do
   when (pod /= A) Nothing
   when (not $ all (==A) $ roomA burrow) Nothing
 
-  let cost = stepCost pod * (3 - length (roomA burrow))
+  let cost = stepCost pod * (5 - length (roomA burrow))
   let burrow' = burrow
                 { gap1 = Nothing
                 , roomA = pod:(roomA burrow)
@@ -803,7 +815,7 @@ aToLeft1 = \burrow -> do
   blockBy $ left1 burrow
   blockBy $ left2 burrow 
   
-  let cost = stepCost pod * (5 - length (roomA burrow))
+  let cost = stepCost pod * (7 - length (roomA burrow))
   let burrow' = burrow
                 { roomA = tail $ roomA burrow
                 , left1 = Just pod
@@ -815,7 +827,7 @@ aToLeft2 = \burrow -> do
   pod <- safeHead $ roomA burrow
   blockBy $ left2 burrow
   
-  let cost = stepCost pod * (4 - length (roomA burrow))
+  let cost = stepCost pod * (6 - length (roomA burrow))
   let burrow' = burrow
                 { roomA = tail $ roomA burrow
                 , left2 = Just pod
