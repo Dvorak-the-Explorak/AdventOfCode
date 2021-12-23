@@ -1,6 +1,6 @@
 import Control.Monad.IO.Class
 import Control.Monad (liftM, ap)
-import Debug.Trace
+-- import Debug.Trace
 
 -- #TODO add a ThiccShow class rather than having an arbitrary type (Show s, Monoid s) => s
 --    (ie) ThiccShow a where thiccShow :: a -> [String]
@@ -104,6 +104,3 @@ main = runThicc $ do
   putTall ""
   putTall "This is a long string"
   -- liftIO $ putStrLn "</thiccprinting>"
-
-ttrace x = trace (show x) x
-ttrace' tag x = trace (tag ++ show x) x

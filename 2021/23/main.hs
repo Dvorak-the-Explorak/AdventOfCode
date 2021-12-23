@@ -1,10 +1,13 @@
 import Data.List (foldl')
 import qualified Data.HashSet as Set
 import qualified Data.PQueue.Min as PQ
+import qualified Data.Vector as V
 -- import Helpers (chain)
 import Data.Maybe
 import Control.Monad
 import Data.Hashable
+import ThiccIO
+import Control.Monad.IO.Class
 
 
 import Debug.Trace
@@ -15,6 +18,7 @@ ttrace x = trace (show x) x
 
 type Set = Set.HashSet
 type PQ = PQ.MinQueue
+type V = V.Vector
 
 
 
@@ -34,51 +38,72 @@ stepCost B = 10
 stepCost C = 100
 stepCost D = 1000
 
-data Burrow = Burrow {
-  left1 ::  Maybe Pod,
-  left2 :: Maybe Pod,
-  roomA :: [Pod],
-  gap1 :: Maybe Pod,
-  roomB :: [Pod],
-  gap2 :: Maybe Pod,
-  roomC :: [Pod],
-  gap3 :: Maybe Pod,
-  roomD :: [Pod],
-  right1 :: Maybe Pod,
-  right2 :: Maybe Pod
-}
-  deriving Eq 
-instance Hashable Burrow where
-  hashWithSalt salt (Burrow  l1 l2 a g1 b g2 c g3 d r1 r2) = hashWithSalt salt $ [l1, l2, g1, g2, g3, r1, r2] ++ map Just (a ++ b ++ c ++ d)
-instance Show Burrow where
-  show (Burrow  l1 l2 a g1 b g2 c g3 d r1 r2) = 
-      "#############\n"
-    ++"#" ++ showSpot l1 ++ showSpot l2 ++ "." ++ showSpot g1 ++ "." ++ showSpot g2 ++ "." ++ showSpot g3 ++ "." ++ showSpot r2 ++ showSpot r1 ++ "#\n"
-    ++"###" ++ getPod 3 a ++ "#" ++ getPod 3 b ++ "#" ++ getPod 3 c ++ "#" ++ getPod 3 d ++ "###\n"
-    ++"  #" ++ getPod 2 a ++ "#" ++ getPod 2 b ++ "#" ++ getPod 2 c ++ "#" ++ getPod 2 d ++ "#  \n"
-    ++"  #" ++ getPod 1 a ++ "#" ++ getPod 1 b ++ "#" ++ getPod 1 c ++ "#" ++ getPod 1 d ++ "#  \n"
-    ++"  #" ++ getPod 0 a ++ "#" ++ getPod 0 b ++ "#" ++ getPod 0 c ++ "#" ++ getPod 0 d ++ "#  \n"
-    ++"  #########"
-
-showSpot :: Maybe Pod -> String
-showSpot Nothing = "."
-showSpot (Just x) = show x
 
 
-safeLast [] = Nothing
-safeLast xs = last xs
+
+data Spot = Spot (Maybe Pod) | Room Pod [Pod]
+  deriving Eq
+instance Hashable Spot where
+  hashWithSalt s (Spot x) = hashWithSalt s x
+  hashWithSalt s (Room t xs) = hashWithSalt s (t:xs)
+-- instance Show Spot where
+--   show 
+
+
+type Burrow = [Spot]
+
+
+-- data Burrow = Burrow 
+--   { spots :: [Maybe Pod]
+--   , roomA :: [Pod]
+--   , roomB :: [Pod]
+--   , roomC :: [Pod]
+--   , roomD :: [Pod]
+--   }
+--   deriving Eq 
+-- instance Hashable Burrow where
+--   hashWithSalt salt (Burrow spots a b c d) = hashWithSalt salt $ spots ++ map Just (a ++ b ++ c ++ d)
+-- instance Show Burrow where
+--   show (Burrow spots a b c d) = 
+--       "#############\n"
+--     ++"#" ++ showSpot 0 spots ++ showSpot 1 spots ++ "." ++ showSpot 2 spots ++ "." ++ showSpot 3 spots ++ "." ++ showSpot 4 spots ++ "." ++ showSpot 5 spots ++ showSpot 6 spots ++ "#\n"
+--     ++"###" ++ getPod 3 a ++ "#" ++ getPod 3 b ++ "#" ++ getPod 3 c ++ "#" ++ getPod 3 d ++ "###\n"
+--     ++"  #" ++ getPod 2 a ++ "#" ++ getPod 2 b ++ "#" ++ getPod 2 c ++ "#" ++ getPod 2 d ++ "#  \n"
+--     ++"  #" ++ getPod 1 a ++ "#" ++ getPod 1 b ++ "#" ++ getPod 1 c ++ "#" ++ getPod 1 d ++ "#  \n"
+--     ++"  #" ++ getPod 0 a ++ "#" ++ getPod 0 b ++ "#" ++ getPod 0 c ++ "#" ++ getPod 0 d ++ "#  \n"
+--     ++"  #########"
+
+printBurrow :: Burrow -> IO ()
+printBurrow b = runThicc $ 
+  do
+    liftIO $ putStrLn "#############"
+    putTall $ "######"
+    putTall $ tallSpot $ b !! 0
+    putTall $ tallSpot $ b !! 1
+    putTall $ tallSpot $ b !! 2
+    putTall $ tallSpot $ b !! 3
+    putTall $ tallSpot $ b !! 4
+    putTall $ tallSpot $ b !! 5
+    putTall $ tallSpot $ b !! 6
+    putTall $ tallSpot $ b !! 7
+    putTall $ tallSpot $ b !! 8
+    putTall $ tallSpot $ b !! 9
+    putTall $ tallSpot $ b !! 10
+    putTall $ "######"
+
+
+tallSpot :: Spot -> String
+tallSpot (Spot Nothing) = ".#####"
+tallSpot (Spot (Just x)) = show x ++ "#####"
+tallSpot (Room _ xs) = "." ++ (take (4 - length xs) "....") ++ concatMap show xs ++ "#"
+
+showSpot :: Int -> [Maybe Pod] -> String
+showSpot n xs = maybe "." show (xs !? n)
 
 getPod :: Int -> [Pod] -> String
 getPod n xs = if length (take (n+1) xs) <= n
                 then "."
                 else show $ xs !! (length xs - n - 1)
-
-firstPod [] = "."
-firstPod xs = show $ last xs
-
-secondPod (x:_:_) = show x
-secondPod _ = "."
-
 
 data Node = Node Burrow Int
 instance Ord Node where
@@ -87,10 +112,8 @@ instance Eq Node where
   (==) (Node b1 c1) (Node b2 c2) = (b1 == b2) && (c1 == c2)
 instance Hashable Node where
   hashWithSalt salt (Node b c) = hashWithSalt salt (b,c)
-instance Show Node where
-  show (Node burrow cost) = "\n" ++ show burrow ++ " " ++ show cost ++ "\n\n"
-
-type Move = Burrow -> Maybe Node
+-- instance Show Node where
+--   show (Node burrow cost) = "\n" ++ show burrow ++ " " ++ show cost ++ "\n\n"
 
 
 
@@ -106,70 +129,52 @@ instance Show a => Show (WithPath a) where
 
 
 
+type Move = Burrow -> Maybe Node
+
+
+
 part1 = True
 
 main = do
-  let test1 = Burrow 
-                { left1 = Nothing
-                , left2 = Nothing
-                , roomA =[B, A]
-                , gap1 =Nothing
-                , roomB =[C, D]
-                , gap2 =Nothing
-                , roomC =[B, C]
-                , gap3 =Nothing
-                , roomD =[D, A]
-                , right1 = Nothing
-                , right2 = Nothing
-                }
+  let test =  [ Spot Nothing
+              , Spot Nothing
+              , Room A [B, A]
+              , Spot Nothing
+              , Room B [C, D]
+              , Spot Nothing
+              , Room C [B, C]
+              , Spot Nothing
+              , Room D [D, A]
+              , Spot Nothing
+              , Spot Nothing
+              ]
 
-  let input1 = Burrow 
-                { left1 = Nothing
-                , left2 = Nothing
-                , roomA =[A, D]
-                , gap1 =Nothing
-                , roomB =[C, A]
-                , gap2 =Nothing
-                , roomC =[B, D]
-                , gap3 =Nothing
-                , roomD =[C, B]
-                , right1 = Nothing
-                , right2 = Nothing
-                }
+  let input = [ Spot Nothing
+              , Spot Nothing
+              , Room A [A, D]
+              , Spot Nothing
+              , Room B [C, A]
+              , Spot Nothing
+              , Room C [B, D]
+              , Spot Nothing
+              , Room D [C, B]
+              , Spot Nothing
+              , Spot Nothing
+              ]
+  -- putStr "Part 1: "
+  -- let result1 = solve1 test1
+  -- case result1 of
+  --   Nothing -> putStrLn "Couldn't find a solution"
+  --   Just (dist, path) -> do
+  --     mapM (printBurrow . (\(Node b d) -> b)) $ reverse path
+  --     print dist
 
-  let test2 = Burrow 
-                { left1 = Nothing
-                , left2 = Nothing
-                , roomA =[B, D, D, A]
-                , gap1 =Nothing
-                , roomB =[C, C, B, D]
-                , gap2 =Nothing
-                , roomC =[B, B, A, C]
-                , gap3 =Nothing
-                , roomD =[D, A, C, A]
-                , right1 = Nothing
-                , right2 = Nothing
-                }
-  let input2 = Burrow 
-                { left1 = Nothing
-                , left2 = Nothing
-                , roomA =[A, D, D, D]
-                , gap1 =Nothing
-                , roomB =[C, C, B, A]
-                , gap2 =Nothing
-                , roomC =[B, B, A, D]
-                , gap3 =Nothing
-                , roomD =[C, A, C, B]
-                , right1 = Nothing
-                , right2 = Nothing
-                }
-
-  putStr "Part 2: "
-  let result2 = solve2 test2
+  putStrLn "Part 2: "
+  let result2 = solve2 test
   case result2 of
     Nothing -> putStrLn "Couldn't find a solution"
     Just (dist, path) -> do
-      mapM print $ reverse path
+      mapM (printBurrow . (\(Node b d) -> b)) $ reverse path
       print dist
 
 
@@ -182,21 +187,29 @@ solve1 burrow = result
     visited = Set.empty
     pq = optionsWithPath $ WithPath (start, [start])
     start = (Node burrow 0)
-    end = Burrow 
-            { left1 = Nothing
-            , left2 = Nothing
-            , roomA =[A, A]
-            , gap1 =Nothing
-            , roomB =[B, B]
-            , gap2 =Nothing
-            , roomC =[C, C]
-            , gap3 =Nothing
-            , roomD =[D, D]
-            , right1 = Nothing
-            , right2 = Nothing
-            }
+    end = [ Spot Nothing
+          , Spot Nothing
+          , Room A [A, A]
+          , Spot Nothing
+          , Room B [B, B]
+          , Spot Nothing
+          , Room C [C, C]
+          , Spot Nothing
+          , Room D [D, D]
+          , Spot Nothing
+          , Spot Nothing
+          ]
 
 
+
+inject [a,b] (Room t (x:xs)) = Room t $ [x, a, b] ++ xs
+
+preprocess2 :: Burrow -> Burrow 
+preprocess2 burrow =  mapAt 2 (inject [D, D]) $ 
+                      mapAt 4 (inject [C, B]) $ 
+                      mapAt 6 (inject [B, A]) $ 
+                      mapAt 8 (inject [A, C]) $
+                      burrow
 
 solve2 :: Burrow -> Maybe (Int, [Node])
 solve2 burrow = result
@@ -205,120 +218,36 @@ solve2 burrow = result
 
     visited = Set.empty
     pq = optionsWithPath $ WithPath (start, [start])
-    start = (Node burrow 0)
-    end = Burrow 
-            { left1 = Nothing
-            , left2 = Nothing
-            , roomA =[A, A, A, A]
-            , gap1 =Nothing
-            , roomB =[B, B, B, B]
-            , gap2 =Nothing
-            , roomC =[C, C, C, C]
-            , gap3 =Nothing
-            , roomD =[D, D, D, D]
-            , right1 = Nothing
-            , right2 = Nothing
-            }
 
-
-
-
-
-
-
-
--- options :: Node -> PQ Node
--- options (Node curr dist) = result
---   where
---     result = PQ.fromList $ map (addCost dist) adj
-
---     -- [Node]
---     adj = catMaybes $ map ($curr) moves
---     moves = [left1ToA, left1ToG1 >>> g1ToB, left1ToG1 >>> g1ToG2 >>> g2ToC
---                 ,left1ToG1 >>> g1ToG2 >>> g2ToG3 >>> g3ToD
---             , left2ToA, left2ToG1 >>> g1ToB, left2ToG1 >>> g1ToG2 >>> g2ToC
---                 ,left2ToG1 >>> g1ToG2 >>> g2ToG3 >>> g3ToD
---             , aToLeft1, aToLeft2, aToG1, aToG1 >>> g1ToG2, aToG1 >>> g1ToG2 >>> g2ToG3
---                 , aToG1 >>> g1ToG2 >>> g2ToG3 >> g3ToRight1, aToG1 >>> g1ToG2 >>> g2ToG3 >> g3ToRight2
---             , g1ToA, g1ToB, g1ToG2 >>> g2ToC
---                 , g1ToG2 >>> g2ToG3 >>> g3ToD
---             , bToG1 >>> g1ToLeft1, bToG1 >>> g1ToLeft2, bToG1, bToG2, bToG2 >>> g2ToG3
---                 , bToG2 >>> g2ToG3 >>> g3ToRight1, bToG2 >>> g2ToG3 >>> g3ToRight2
---             , g2ToG1 >>> g1ToA, g2ToB, g2ToC
---                 , g2ToG3 >>> g3ToD
---             , cToG2 >>> g2ToG1 >>> g1ToLeft1, cToG2 >>> g2ToG1 >>> g1ToLeft2, cToG2 >>> g2ToG1
---                 , cToG2, cToG3, cToG3>>> g3ToRight1, cToG3>>> g3ToRight2
---             , g3ToG2 >>> g2ToG1 >>> g1ToA, g3ToG2 >>> g2ToB, g3ToC
---                 , g3ToD
---             , dToG3 >>> g3ToG2 >>> g2ToG1 >>> g1ToLeft1, dToG3 >>> g3ToG2 >>> g2ToG1 >>> g1ToLeft2, dToG3 >>> g3ToG2 >>> g2ToG1
---                 , dToG3 >>> g3ToG2, dToG3, dToRight1, dToRight2
---             , right1ToG3 >>> g3ToG2 >>> g2ToG1 >>> g1ToA, right1ToG3 >>> g3ToG2 >>> g2ToB, right1ToG3 >>> g3ToC
---                 , right1ToD
---             , right2ToG3 >>> g3ToG2 >>> g2ToG1 >>> g1ToA, right2ToG3 >>> g3ToG2 >>> g2ToB, right2ToG3 >>> g3ToC
---                 , right2ToD]
-
---     addCost c (Node x d) = Node x (d+c)
-
-
+    start = (Node (preprocess2 burrow) 0)
+    end = [ Spot Nothing
+          , Spot Nothing
+          , Room A [A, A, A, A]
+          , Spot Nothing
+          , Room B [B, B, B, B]
+          , Spot Nothing
+          , Room C [C, C, C, C]
+          , Spot Nothing
+          , Room D [D, D, D, D]
+          , Spot Nothing
+          , Spot Nothing
+          ]
 
 optionsWithPath :: WithPath Node -> PQ (WithPath Node)
 optionsWithPath (WithPath ((Node curr dist), path)) = result
   where
-    -- invalid = filter toR2 $ map ($curr) moves
 
-    -- toR2 (Just (Node b _)) = right2 b /= Nothing && gap3 b == Nothing
-    -- toR2 _ = False
-    -- result = if gap3 curr /= Nothing && (not $ null invalid)
-    --           then trace ("INVALID" ++ show curr ++ show invalid) result'
-    --           else result'
     result = PQ.fromList $ map (addPath . addCost dist) adj
 
     -- [Node]12
-    adj = catMaybes $ map ($curr) moves
-    moves = [left1ToA, left1ToG1 >>> g1ToB, left1ToG1 >>> g1ToG2 >>> g2ToC
-                ,left1ToG1 >>> g1ToG2 >>> g2ToG3 >>> g3ToD
-            , left2ToA, left2ToG1 >>> g1ToB, (left2ToG1 >>> g1ToG2) >>> g2ToC
-                ,left2ToG1 >>> g1ToG2 >>> g2ToG3 >>> g3ToD
-            , aToLeft1, aToLeft2, aToG1, aToG1 >>> g1ToG2, aToG1 >>> g1ToG2 >>> g2ToG3
-                , ((aToG1 >>> g1ToG2) >>> g2ToG3) >>> g3ToRight1, aToG1 >>> g1ToG2 >>> g2ToG3 >>> g3ToRight2
-            , g1ToA, g1ToB, g1ToG2 >>> g2ToC
-                , g1ToG2 >>> g2ToG3 >>> g3ToD
-            , bToG1 >>> g1ToLeft1, bToG1 >>> g1ToLeft2, bToG1, bToG2, bToG2 >>> g2ToG3
-                , bToG2 >>> g2ToG3 >>> g3ToRight1, bToG2 >>> g2ToG3 >>> g3ToRight2
-            , g2ToG1 >>> g1ToA, g2ToB, g2ToC
-                , g2ToG3 >>> g3ToD
-            , cToG2 >>> g2ToG1 >>> g1ToLeft1, cToG2 >>> g2ToG1 >>> g1ToLeft2, cToG2 >>> g2ToG1
-                , cToG2, cToG3, cToG3 >>> g3ToRight1, cToG3 >>> g3ToRight2
-            , g3ToG2 >>> g2ToG1 >>> g1ToA, g3ToG2 >>> g2ToB, g3ToC
-                , g3ToD
-            , dToG3 >>> g3ToG2 >>> g2ToG1 >>> g1ToLeft1, dToG3 >>> g3ToG2 >>> g2ToG1 >>> g1ToLeft2, dToG3 >>> g3ToG2 >>> g2ToG1
-                , dToG3 >>> g3ToG2, dToG3, dToRight1, dToRight2
-            , right1ToG3 >>> g3ToG2 >>> g2ToG1 >>> g1ToA, right1ToG3 >>> g3ToG2 >>> g2ToB, right1ToG3 >>> g3ToC
-                , right1ToD
-            , right2ToG3 >>> g3ToG2 >>> g2ToG1 >>> g1ToA, right2ToG3 >>> g3ToG2 >>> g2ToB, right2ToG3 >>> g3ToC
-                , right2ToD
-            ]
+    adj = catMaybes $ map ($curr) $ moves 
+    n = length curr
+    moves = [move i j | i <- spots, j <- rooms] ++ [move j i | i <- spots, j <- rooms]
+    spots = [0, 1, 3, 5, 7, 9]
+    rooms = [2, 4, 6, 8]
 
     addCost c (Node x d) = Node x (d+c)
     addPath n = WithPath (n, (n:path))
-
-
-
-
-
--- --  user specifies a function to get the adjacent 
--- dijk :: (Node ->  PQ Node) -> PQ Node -> Set Burrow -> Burrow -> Maybe Int
--- dijk getAdj pq visited end = do
---     (curr@(Node coord dist), pq') <- PQ.minView pq
---     -- let dist' = 
---     let visited' = Set.insert coord visited
-
-
---     if coord == end 
---       then Just dist
---       else if coord `Set.member` visited
---         then dijk getAdj pq' visited end
---         else dijk getAdj (PQ.union pq' $ getAdj curr) visited' end
 
 
 -- also returns the path
@@ -337,536 +266,89 @@ dijkWithPath getAdj pq visited end = do
         then dijkWithPath getAdj pq' visited end
         else dijkWithPath getAdj (PQ.union pq' adjacencies) visited' end
 
-
-
-
--- Move  = Burrow -> Maybe Node
-infixl 5 >>>
-(>>>) :: Move -> Move -> Move
-(>>>) m1 m2 = \burrow -> do
-  (Node burrow' cost1) <- m1 burrow
-  (Node burrow'' cost2) <- m2 burrow'
-  Just $ Node burrow'' (cost1 + cost2)
-
-
-blockBy :: Maybe a -> Maybe ()
-blockBy Nothing = Just ()
-blockBy _ = Nothing
-
-
-
-
-
 -- >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 
-left1ToA :: Move
-left1ToA = \burrow -> do
-  pod <- left1 burrow
-  when (pod /= A) Nothing
-  when (not $ all (==A) $ roomA burrow) Nothing
-  blockBy $ left2 burrow
-  
-  let cost = stepCost pod * (6 - length (roomA burrow))
-  let burrow' = burrow
-                { left1 = Nothing
-                , roomA = pod:(roomA burrow)
-                }
+
+validMove :: Spot -> Spot -> Bool
+validMove (Spot _) (Room _ _) = True
+validMove (Room _ _) (Spot _) = True
+validMove _ _ = False
+
+assert False = Nothing
+assert True = Just ()
+
+slice :: Int -> Int -> [a] -> [a]
+slice s e xs = take (e-s+1) $ drop s xs
+
+clearBetween :: Int -> Int -> Burrow -> Bool
+clearBetween start end burrow = all clear $ take (hi-lo-1) $ drop (lo+1) burrow
+  where
+    (lo, hi) = (min start end, max start end)
+     
+
+clear :: Spot -> Bool
+clear (Spot Nothing) = True
+clear (Room _ _) = True
+clear _ = False
+
+removePod :: Spot -> Spot
+removePod (Spot _) = Spot Nothing
+removePod (Room target (_:xs)) = Room target xs
+
+addPod :: Pod -> Spot -> Spot
+addPod x (Spot _) = Spot (Just x)
+addPod x (Room target xs) = Room target (x:xs)
+
+-- very partial
+setAt :: Int -> a -> [a] -> [a]
+setAt n x xs = take n xs ++ [x] ++ drop (n+1) xs
+
+mapAt :: Int -> (a -> a) -> [a] -> [a]
+mapAt n f xs = take n xs ++ [f (xs !! n)] ++ drop (n+1) xs
+
+firstPod :: Spot -> Maybe Pod
+firstPod (Spot (Just x)) = Just x
+firstPod (Room _ (x:_)) = Just x
+firstPod _ = Nothing
+
+
+podMatches :: Pod -> Spot -> Bool
+podMatches x (Spot _) = True
+podMatches x (Room t _) = t == x
+
+podsMatch :: Spot -> Bool
+podsMatch (Spot _) = True
+podsMatch (Room t xs) = all (==t) xs
+
+fillness :: Spot -> Int
+fillness (Spot Nothing) = 0
+fillness (Spot _) = 1
+fillness (Room _ xs) = length xs
+
+move :: Int -> Int -> Burrow -> Maybe Node
+move start end burrow = do
+  assert $ start < length burrow
+  assert $ end < length burrow
+  assert $ validMove (burrow !! start) (burrow !! end)
+  assert $ clearBetween start end burrow
+
+  pod <- firstPod $ burrow !! start
+  let entering = case burrow !! start of
+                  Spot _ -> True
+                  _ -> False
+
+
+  -- if it's a room, make sure the pod we're moving matches
+  --    and all the pods currently in there also match
+  when entering $ assert $ podsMatch (burrow !! end) && podMatches pod (burrow !! end)
+
+
+  let burrow' = mapAt start (removePod) $ mapAt end (addPod pod) $ burrow
+  let cost = if entering
+              then (abs $ end - start) + (4 - fillness (burrow !! end))
+              else (abs $ end - start) + (5 - fillness (burrow !! start))
   return $ Node burrow' cost
-
-left2ToA :: Move
-left2ToA = \burrow -> do
-  pod <- left2 burrow
-  when (pod /= A) Nothing
-  when (not $ all (==A) $ roomA burrow) Nothing
-  
-  let cost = stepCost pod * (5 - length (roomA burrow))
-  let burrow' = burrow
-                { left2 = Nothing 
-                , roomA = pod:(roomA burrow)
-                }
-  return $ Node burrow' cost
-
-left1ToG1 :: Burrow -> Maybe Node
-left1ToG1 burrow = do
-  pod <- left1 burrow
-  when (not $ null $ gap1 burrow) Nothing
-  blockBy $ left2 burrow
-  
-  let cost = stepCost pod * 3
-  let burrow' = burrow
-                { left1 = Nothing
-                , gap1 = Just pod
-                }
-  return $ Node burrow' cost
-
-left2ToG1 :: Burrow -> Maybe Node
-left2ToG1 burrow = do
-  pod <- left2 burrow
-  blockBy $ gap1 burrow
-  
-  let cost = stepCost pod * 2
-  let burrow' = burrow
-                { left2 = Nothing
-                , gap1 = Just pod
-                }
-  return $ Node burrow' cost
-
-aToG1 :: Burrow -> Maybe Node
-aToG1 burrow = do
-  pod <- safeHead $ roomA burrow
-  blockBy $ gap1 burrow
-  
-  let cost = stepCost pod * (6 - length (roomA burrow))
-  let burrow' = burrow
-                { roomA = (tail $ roomA burrow) 
-                , gap1 = Just pod
-                }
-  return $ Node burrow' cost
-
-
-
-
-
-
-
-
-
-
-
-g1ToB :: Move
-g1ToB = \burrow -> do
-  pod <- gap1 burrow
-  when (pod /= B) Nothing
-  when (not $ all (==B) $ roomB burrow) Nothing
-
-  let cost = stepCost pod * (5 - length (roomB burrow))
-  let burrow' = burrow
-                { gap1 = Nothing
-                , roomB = pod:(roomB burrow)
-                }
-  return $ Node burrow' cost
-
-g1ToG2 :: Move
-g1ToG2 = \burrow -> do
-  pod <- gap1 burrow
-  blockBy $ gap2 burrow
-
-  let cost = stepCost pod * 2
-  let burrow' = burrow
-                { gap1 = Nothing
-                , gap2 = Just pod
-                }
-  return $ Node burrow' cost
-
-
-bToG2 :: Burrow -> Maybe Node
-bToG2 burrow = do
-  pod <- safeHead $ roomB burrow
-  blockBy $ gap2 burrow
-  
-  let cost = stepCost pod * (6 - length (roomB burrow))
-  let burrow' = burrow
-                { roomB = (tail $ roomB burrow) 
-                , gap2 = Just pod
-                }
-  return $ Node burrow' cost
-
-
-
-
-
-
-
-
-
-
-
-
-g2ToC :: Move
-g2ToC = \burrow -> do
-  pod <- gap2 burrow
-  when (pod /= C) Nothing
-  when (not $ all (==C) $ roomC burrow) Nothing
-
-  let cost = stepCost pod * (5 - length (roomC burrow))
-  let burrow' = burrow
-                { gap2 = Nothing
-                , roomC = pod:(roomC burrow)
-                }
-  return $ Node burrow' cost
-
-g2ToG3 :: Move
-g2ToG3 = \burrow -> do
-  pod <- gap2 burrow
-  blockBy $ gap3 burrow
-
-  let cost = stepCost pod * 2
-  let burrow' = burrow
-                { gap2 = Nothing
-                , gap3 = Just pod
-                }
-  return $ Node burrow' cost
-
-
-cToG3 :: Burrow -> Maybe Node
-cToG3 burrow = do
-  pod <- safeHead $ roomC burrow
-  blockBy $ gap3 burrow
-  
-  let cost = stepCost pod * (6 - length (roomC burrow))
-  let burrow' = burrow
-                { roomC = (tail $ roomC burrow) 
-                , gap3 = Just pod
-                }
-  return $ Node burrow' cost
-
-
-
-
-
-
-
-
-
-
-
-g3ToD :: Move
-g3ToD = \burrow -> do
-  pod <- gap3 burrow
-  when (pod /= D) Nothing
-  when (not $ all (==D) $ roomD burrow) Nothing
-
-  let cost = stepCost pod * (5 - length (roomD burrow))
-  let burrow' = burrow
-                { gap3 = Nothing
-                , roomD = pod:(roomD burrow)
-                }
-  return $ Node burrow' cost
-
-g3ToRight1 :: Move
-g3ToRight1 = \burrow -> do
-  pod <- gap3 burrow
-  blockBy $ right1 burrow
-  blockBy $ right2 burrow
-
-  let cost = stepCost pod * 3
-  let burrow' = burrow
-                { gap3 = Nothing
-                , right1 = Just pod
-                }
-  return $ Node burrow' cost
-
-g3ToRight2 :: Move
-g3ToRight2 = \burrow -> do
-  pod <- gap3 burrow
-  blockBy $ right2 burrow
-
-  let cost = stepCost pod * 2
-  let burrow' = burrow
-                { gap3 = Nothing
-                , right2 = Just pod
-                }
-  return $ Node burrow' cost
-
-dToRight1 :: Burrow -> Maybe Node
-dToRight1 burrow = do
-  pod <- safeHead $ roomD burrow
-  blockBy $ right1 burrow
-  blockBy $ right2 burrow
-  
-  let cost = stepCost pod * (7 - length (roomD burrow))
-  let burrow' = burrow
-                { roomD = (tail $ roomD burrow) 
-                , right1 = Just pod
-                }
-  return $ Node burrow' cost
-
-
-dToRight2 :: Burrow -> Maybe Node
-dToRight2 burrow = do
-  pod <- safeHead $ roomD burrow
-  blockBy $ right2 burrow
-  
-  let cost = stepCost pod * (6 - length (roomD burrow))
-  let burrow' = burrow
-                { roomD = (tail $ roomD burrow) 
-                , right2 = Just pod
-                }
-  return $ Node burrow' cost
-
-
--- <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-
-right1ToD :: Move
-right1ToD = \burrow -> do
-  pod <- right1 burrow
-  blockBy $ right2 burrow
-  when (pod /= D) Nothing
-  when (not $ all (==D) $ roomD burrow) Nothing
-
-  let cost = stepCost pod * (6 - length (roomD burrow))
-  let burrow' = burrow
-                { right1 = Nothing
-                , roomD = pod:(roomD burrow)
-                }
-  return $ Node burrow' cost
-
-right2ToD :: Move
-right2ToD = \burrow -> do
-  pod <- right2 burrow
-
-  when (pod /= D) Nothing
-  when (not $ all (==D) $ roomD burrow) Nothing
-
-  let cost = stepCost pod * (5 - length (roomD burrow))
-  let burrow' = burrow
-                { right2 = Nothing
-                , roomD = pod:(roomD burrow)
-                }
-  return $ Node burrow' cost
-
-
-right1ToG3 :: Move
-right1ToG3 = \burrow -> do
-  pod <- right1 burrow
-
-  blockBy $ right2 burrow
-  blockBy $ gap3 burrow
-
-  let cost = stepCost pod * 3
-  let burrow' = burrow
-                { right1 = Nothing
-                , gap3 = Just pod
-                }
-  return $ Node burrow' cost
-
-right2ToG3 :: Move
-right2ToG3 = \burrow -> do
-  pod <- right2 burrow
-  blockBy $ gap3 burrow
-
-  let cost = stepCost pod * 2
-  let burrow' = burrow
-                { right2 = Nothing
-                , gap3 = Just pod
-                }
-  return $ Node burrow' cost
-
-
-dToG3 :: Burrow -> Maybe Node
-dToG3 burrow = do
-  pod <- safeHead $ roomD burrow
-  blockBy $ gap3 burrow
-  
-  let cost = stepCost pod * (6 - length (roomD burrow))
-  let burrow' = burrow
-                { roomD = (tail $ roomD burrow) 
-                , gap3 = Just pod
-                }
-  return $ Node burrow' cost
-
-
-
-
-
-
-
-
-
-
-
-g3ToC :: Move
-g3ToC = \burrow -> do
-  pod <- gap3 burrow
-  when (pod /= C) Nothing
-  when (not $ all (==C) $ roomC burrow) Nothing
-
-  let cost = stepCost pod * (5 - length (roomC burrow))
-  let burrow' = burrow
-                { gap3 = Nothing
-                , roomC = pod:(roomC burrow)
-                }
-  return $ Node burrow' cost
-
-g3ToG2 :: Move
-g3ToG2 = \burrow -> do
-  pod <- gap3 burrow
-  blockBy $ gap2 burrow
-
-  let cost = stepCost pod * 2
-  let burrow' = burrow
-                { gap3 = Nothing
-                , gap2 = Just pod
-                }
-  return $ Node burrow' cost
-
-cToG2 :: Burrow -> Maybe Node
-cToG2 burrow = do
-  pod <- safeHead $ roomC burrow
-  blockBy $ gap2 burrow
-  
-  let cost = stepCost pod * (6 - length (roomC burrow))
-  let burrow' = burrow
-                { roomC = (tail $ roomC burrow) 
-                , gap2 = Just pod
-                }
-  return $ Node burrow' cost
-
-
-
-
-
-
-
-
-
-g2ToB :: Move
-g2ToB = \burrow -> do
-  pod <- gap2 burrow
-  when (pod /= B) Nothing
-  when (not $ all (==B) $ roomB burrow) Nothing
-
-  let cost = stepCost pod * (5 - length (roomB burrow))
-  let burrow' = burrow
-                { gap2 = Nothing
-                , roomB = pod:(roomB burrow)
-                }
-  return $ Node burrow' cost
-
-g2ToG1 :: Move
-g2ToG1 = \burrow -> do
-  pod <- gap2 burrow
-  blockBy $ gap1 burrow
-
-  let cost = stepCost pod * 2
-  let burrow' = burrow
-                { gap2 = Nothing
-                , gap1 = Just pod
-                }
-  return $ Node burrow' cost
-
-bToG1 :: Burrow -> Maybe Node
-bToG1 burrow = do
-  pod <- safeHead $ roomB burrow
-  blockBy $ gap1 burrow
-  
-  let cost = stepCost pod * (6 - length (roomB burrow))
-  let burrow' = burrow
-                { roomB = (tail $ roomB burrow) 
-                , gap1 = Just pod
-                }
-  return $ Node burrow' cost
-
-
-
-
-
-
-
-
-
-
-
-g1ToA :: Move
-g1ToA = \burrow -> do
-  pod <- gap1 burrow
-  when (pod /= A) Nothing
-  when (not $ all (==A) $ roomA burrow) Nothing
-
-  let cost = stepCost pod * (5 - length (roomA burrow))
-  let burrow' = burrow
-                { gap1 = Nothing
-                , roomA = pod:(roomA burrow)
-                }
-  return $ Node burrow' cost
-
-
-
-g1ToLeft1 :: Burrow -> Maybe Node
-g1ToLeft1 burrow = do
-  pod <- gap1 burrow
-  blockBy $ left1 burrow
-  blockBy $ left2 burrow
-  
-  let cost = stepCost pod * 3
-  let burrow' = burrow
-                { gap1 = Nothing
-                , left1 = Just pod
-                }
-  return $ Node burrow' cost
-
-
-g1ToLeft2 :: Burrow -> Maybe Node
-g1ToLeft2 burrow = do
-  pod <- gap1 burrow
-  when (left2 burrow /= Nothing) Nothing
-  
-  let cost = stepCost pod * 2
-  let burrow' = burrow
-                { gap1 = Nothing
-                , left2 = Just pod
-                }
-  return $ Node burrow' cost
-
-aToLeft1 :: Move
-aToLeft1 = \burrow -> do
-  pod <- safeHead $ roomA burrow
-  blockBy $ left1 burrow
-  blockBy $ left2 burrow 
-  
-  let cost = stepCost pod * (7 - length (roomA burrow))
-  let burrow' = burrow
-                { roomA = tail $ roomA burrow
-                , left1 = Just pod
-                }
-  return $ Node burrow' cost
-
-aToLeft2 :: Move
-aToLeft2 = \burrow -> do
-  pod <- safeHead $ roomA burrow
-  blockBy $ left2 burrow
-  
-  let cost = stepCost pod * (6 - length (roomA burrow))
-  let burrow' = burrow
-                { roomA = tail $ roomA burrow
-                , left2 = Just pod
-                }
-  return $ Node burrow' cost
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -877,3 +359,11 @@ aToLeft2 = \burrow -> do
 safeHead :: [a] -> Maybe a
 safeHead [] = Nothing
 safeHead (x:xs) = Just x
+
+
+(!?) :: [a] -> Int -> Maybe a
+xs !? n
+  | n < 0     = Nothing
+  | otherwise = foldr (\x r k -> case k of
+                                   0 -> Just x
+                                   _ -> r (k-1)) (const Nothing) xs n
