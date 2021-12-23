@@ -13,6 +13,12 @@ getCounts :: (Eq a, Hashable a) => [a] -> Map.HashMap a Int
 getCounts = foldl' (\ acc x -> tally x acc) $ Map.fromList []
   where
     tally x = Map.insertWith (+) x 1
+ 
+getCountsList :: [Int] -> [Int]
+getCountsList xs = map (\x -> findWithDefault 0 x countsMap) [0..top]
+  where
+    top = maximum xs
+    countsMap = getCounts xs
 
 pairs :: [a] -> [(a,a)]
 pairs xs = zip xs $ tail xs
@@ -23,3 +29,12 @@ unique = trim . sort
     trim (x:y:xs) | x == y = trim (x:xs)
                   | otherwise = (x:) $ trim (y:xs)
     trim xs = xs
+
+
+findWithDefault :: (Eq k, Hashable k)
+              => v          -- ^ Default value to return.
+              -> k -> Map.HashMap k v -> v
+findWithDefault def k t = case Map.lookup k t of
+    Just v -> v
+    _      -> def
+{-# INLINABLE findWithDefault #-}
