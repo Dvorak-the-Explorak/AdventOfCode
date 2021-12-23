@@ -4,12 +4,19 @@ data Grid a = Grid {
   getGrid :: [[a]]
 } deriving (Eq)
 
--- #TODO make this 2 types: Coord (Int,Int) and ValidCoord (Int,Int)
---    then we can have getValidCoord :: ValidCoord -> thing
-type Coord = (Int,Int)
--- newtype ValidCoord = ValidCood (Int,Int)
+newtype Coord = Coord (Int,Int)
+newtype ValidCoord = ValidCoord (Int,Int)
+class HasCoord a where
+  getCoord :: a -> (Int,Int)
 
-type Kernel a b = (Coord -> Maybe a) -> Coord -> b
+instance HasCoord ValidCoord where
+  getCoord (ValidCoord x) = x
+instance HasCoord Coord where
+  getCoord (Coord x) = x
+
+
+
+type Kernel a b = HasCoord c => (c -> Maybe a) -> (ValidCoord -> a) -> ValidCoord -> b
 
 instance Show a => Show (Grid a) where
   show (Grid rows) = show rows
@@ -24,8 +31,8 @@ instance Applicative Grid where
 
 
 -- partial 
-getIndex :: Coord -> Grid a -> a
-getIndex (row,col) (Grid x) = (x !! row) !! col
+getIndex :: HasCoord c => c -> Grid a -> a
+getIndex c (Grid x) = let (row,col) = getCoord c in (x !! row) !! col
 
 -- partial
 getJust (Just x) = x
@@ -40,33 +47,32 @@ height (Grid xs) = length xs
 gridSum :: Grid Int -> Int
 gridSum = sum . map sum . getGrid
 
-up :: Coord -> Coord
-up (row,col) = (row-1,col)
+up :: HasCoord c => c -> Coord
+up c = let (row,col) getCoord c in (row-1,col)
 
-down :: Coord -> Coord
-down (row,col) = (row+1,col)
+down :: HasCoord c => c -> Coord
+down c = let (row,col) getCoord c in (row+1,col)
 
-left :: Coord -> Coord
-left (row,col) = (row,col-1)
+left :: HasCoord c => c -> Coord
+left c = let (row,col) getCoord c in (row,col-1)
 
-right :: Coord -> Coord
-right (row,col) = (row,col+1)
+right :: HasCoord c => c -> Coord
+right c = let (row,col) getCoord c in (row,col+1)
 
-orthoAdjacent :: Coord -> [Coord]
+orthoAdjacent :: HasCoord c => c -> [Coord]
 orthoAdjacent x = map ($x) [up, down, left, right]
 
 allAdjacent x = map ($x) [up.left, up, up.right, left, right, down.left, down, down.right] 
 
 simpleKernel :: (a -> b) -> Kernel a b
-simpleKernel f = \getVal coord -> f $ getJust $ getVal coord
--- simpleKernel f = fmap f <$>
+simpleKernel f = \getVal getValidVal coord -> f $ getValidVal coord
 
 
 
 -- run the kernel on a grid
 --  #TODO only call (kernel _ x) on valid coordinates x (type level?)
 mapKernel :: Kernel a b -> Grid a -> Grid b
-mapKernel kernel grid = fmap (kernel getVal) gridCoords
+mapKernel kernel grid = fmap (kernel (getVal . getCoord) getValidVal) gridCoords
   where
     m = height grid
     n = width grid
@@ -78,5 +84,8 @@ mapKernel kernel grid = fmap (kernel getVal) gridCoords
       | col >= n = Nothing
       | otherwise = Just $ getIndex (row,col) grid
 
+    -- won't fail, ValidCoord is only ever made in the gridCoords function
+    getValidVal (ValidCoord (row,col)) = getIndex (row,col) grid 
+
     gridCoords :: Grid (Int,Int)
-    gridCoords = Grid [[(row,col) | col <- [0..n-1]] | row <- [0..m-1]]
+    gridCoords = Grid [[ValidCoord (row,col) | col <- [0..n-1]] | row <- [0..m-1]]
