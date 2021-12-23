@@ -1,7 +1,11 @@
+{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE FlexibleInstances #-}
+
 import Data.List (foldl')
 import qualified Data.HashSet as Set
 import qualified Data.PQueue.Min as PQ
 import qualified Data.Vector as V
+import Data.Vector ((!))
 -- import Helpers (chain)
 import Data.Maybe
 import Control.Monad
@@ -50,45 +54,26 @@ instance Hashable Spot where
 --   show 
 
 
-type Burrow = [Spot]
-
-
--- data Burrow = Burrow 
---   { spots :: [Maybe Pod]
---   , roomA :: [Pod]
---   , roomB :: [Pod]
---   , roomC :: [Pod]
---   , roomD :: [Pod]
---   }
---   deriving Eq 
--- instance Hashable Burrow where
---   hashWithSalt salt (Burrow spots a b c d) = hashWithSalt salt $ spots ++ map Just (a ++ b ++ c ++ d)
--- instance Show Burrow where
---   show (Burrow spots a b c d) = 
---       "#############\n"
---     ++"#" ++ showSpot 0 spots ++ showSpot 1 spots ++ "." ++ showSpot 2 spots ++ "." ++ showSpot 3 spots ++ "." ++ showSpot 4 spots ++ "." ++ showSpot 5 spots ++ showSpot 6 spots ++ "#\n"
---     ++"###" ++ getPod 3 a ++ "#" ++ getPod 3 b ++ "#" ++ getPod 3 c ++ "#" ++ getPod 3 d ++ "###\n"
---     ++"  #" ++ getPod 2 a ++ "#" ++ getPod 2 b ++ "#" ++ getPod 2 c ++ "#" ++ getPod 2 d ++ "#  \n"
---     ++"  #" ++ getPod 1 a ++ "#" ++ getPod 1 b ++ "#" ++ getPod 1 c ++ "#" ++ getPod 1 d ++ "#  \n"
---     ++"  #" ++ getPod 0 a ++ "#" ++ getPod 0 b ++ "#" ++ getPod 0 c ++ "#" ++ getPod 0 d ++ "#  \n"
---     ++"  #########"
+type Burrow = V Spot
+instance Hashable Burrow where
+  hashWithSalt s b = hashWithSalt s $ V.toList b
 
 printBurrow :: Burrow -> IO ()
 printBurrow b = runThicc $ 
   do
     liftIO $ putStrLn "#############"
     putTall $ "######"
-    putTall $ tallSpot $ b !! 0
-    putTall $ tallSpot $ b !! 1
-    putTall $ tallSpot $ b !! 2
-    putTall $ tallSpot $ b !! 3
-    putTall $ tallSpot $ b !! 4
-    putTall $ tallSpot $ b !! 5
-    putTall $ tallSpot $ b !! 6
-    putTall $ tallSpot $ b !! 7
-    putTall $ tallSpot $ b !! 8
-    putTall $ tallSpot $ b !! 9
-    putTall $ tallSpot $ b !! 10
+    putTall $ tallSpot $ b ! 0
+    putTall $ tallSpot $ b ! 1
+    putTall $ tallSpot $ b ! 2
+    putTall $ tallSpot $ b ! 3
+    putTall $ tallSpot $ b ! 4
+    putTall $ tallSpot $ b ! 5
+    putTall $ tallSpot $ b ! 6
+    putTall $ tallSpot $ b ! 7
+    putTall $ tallSpot $ b ! 8
+    putTall $ tallSpot $ b ! 9
+    putTall $ tallSpot $ b ! 10
     putTall $ "######"
 
 
@@ -97,13 +82,7 @@ tallSpot (Spot Nothing) = ".#####"
 tallSpot (Spot (Just x)) = show x ++ "#####"
 tallSpot (Room _ xs) = "." ++ (take (4 - length xs) "....") ++ concatMap show xs ++ "#"
 
-showSpot :: Int -> [Maybe Pod] -> String
-showSpot n xs = maybe "." show (xs !? n)
 
-getPod :: Int -> [Pod] -> String
-getPod n xs = if length (take (n+1) xs) <= n
-                then "."
-                else show $ xs !! (length xs - n - 1)
 
 data Node = Node Burrow Int
 instance Ord Node where
@@ -136,7 +115,7 @@ type Move = Burrow -> Maybe Node
 part1 = True
 
 main = do
-  let test =  [ Spot Nothing
+  let test = V.fromList [ Spot Nothing
               , Spot Nothing
               , Room A [B, A]
               , Spot Nothing
@@ -149,7 +128,7 @@ main = do
               , Spot Nothing
               ]
 
-  let input = [ Spot Nothing
+  let input = V.fromList [ Spot Nothing
               , Spot Nothing
               , Room A [A, D]
               , Spot Nothing
@@ -187,7 +166,7 @@ solve1 burrow = result
     visited = Set.empty
     pq = optionsWithPath $ WithPath (start, [start])
     start = (Node burrow 0)
-    end = [ Spot Nothing
+    end = V.fromList [ Spot Nothing
           , Spot Nothing
           , Room A [A, A]
           , Spot Nothing
@@ -220,7 +199,7 @@ solve2 burrow = result
     pq = optionsWithPath $ WithPath (start, [start])
 
     start = (Node (preprocess2 burrow) 0)
-    end = [ Spot Nothing
+    end = V.fromList [ Spot Nothing
           , Spot Nothing
           , Room A [A, A, A, A]
           , Spot Nothing
@@ -282,7 +261,7 @@ slice :: Int -> Int -> [a] -> [a]
 slice s e xs = take (e-s+1) $ drop s xs
 
 clearBetween :: Int -> Int -> Burrow -> Bool
-clearBetween start end burrow = all clear $ take (hi-lo-1) $ drop (lo+1) burrow
+clearBetween start end burrow = all clear $ V.take (hi-lo-1) $ V.drop (lo+1) burrow
   where
     (lo, hi) = (min start end, max start end)
      
@@ -301,11 +280,11 @@ addPod x (Spot _) = Spot (Just x)
 addPod x (Room target xs) = Room target (x:xs)
 
 -- very partial
-setAt :: Int -> a -> [a] -> [a]
-setAt n x xs = take n xs ++ [x] ++ drop (n+1) xs
+setAt :: Int -> a -> V a -> V a
+setAt n x xs = V.take n xs <> (V.singleton x) <> V.drop (n+1) xs
 
-mapAt :: Int -> (a -> a) -> [a] -> [a]
-mapAt n f xs = take n xs ++ [f (xs !! n)] ++ drop (n+1) xs
+mapAt :: Int -> (a -> a) -> V a -> V a
+mapAt n f xs = V.take n xs <> V.singleton (f (xs ! n)) <> V.drop (n+1) xs
 
 firstPod :: Spot -> Maybe Pod
 firstPod (Spot (Just x)) = Just x
@@ -330,24 +309,24 @@ move :: Int -> Int -> Burrow -> Maybe Node
 move start end burrow = do
   assert $ start < length burrow
   assert $ end < length burrow
-  assert $ validMove (burrow !! start) (burrow !! end)
+  assert $ validMove (burrow ! start) (burrow ! end)
   assert $ clearBetween start end burrow
 
-  pod <- firstPod $ burrow !! start
-  let entering = case burrow !! start of
+  pod <- firstPod $ burrow ! start
+  let entering = case burrow ! start of
                   Spot _ -> True
                   _ -> False
 
 
   -- if it's a room, make sure the pod we're moving matches
   --    and all the pods currently in there also match
-  when entering $ assert $ podsMatch (burrow !! end) && podMatches pod (burrow !! end)
+  when entering $ assert $ podsMatch (burrow ! end) && podMatches pod (burrow ! end)
 
 
   let burrow' = mapAt start (removePod) $ mapAt end (addPod pod) $ burrow
   let cost = if entering
-              then (abs $ end - start) + (4 - fillness (burrow !! end))
-              else (abs $ end - start) + (5 - fillness (burrow !! start))
+              then (abs $ end - start) + (4 - fillness (burrow ! end))
+              else (abs $ end - start) + (5 - fillness (burrow ! start))
   return $ Node burrow' cost
 
 
@@ -361,9 +340,9 @@ safeHead [] = Nothing
 safeHead (x:xs) = Just x
 
 
-(!?) :: [a] -> Int -> Maybe a
+(!?) :: V a -> Int -> Maybe a
 xs !? n
   | n < 0     = Nothing
   | otherwise = foldr (\x r k -> case k of
                                    0 -> Just x
-                                   _ -> r (k-1)) (const Nothing) xs n
+                                   _ -> r (k-1)) (const Nothing) (V.toList xs) n
