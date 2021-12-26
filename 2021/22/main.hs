@@ -14,12 +14,6 @@ type Action = (Bool, Box)
 type Box = (Range, Range, Range)
 type Range = (Int,Int)
 
-data RangeArrangement = Disjoint | 
-                        CrossLR | CrossRL | 
-                        StackLR | StackRL |
-                        OverLR | OverRL | 
-                        Equal
-
 part1 = True
 
 main = do
@@ -52,13 +46,10 @@ getPuzzleInput = do
 
 
 -- solve1 :: PuzzleInput-> Int
-solve1 (a1:a2:as) = sum $ map sizeAction ints
+solve1 actions = sum $ map sizeAction $ disjointCubes
   where
-    result@(l, ints, r) = splitAction a1 a2
-
-    -- result = foldl' join (head actions) (tail actions)
-
-
+    todo = filter inRange actions
+    disjointCubes = foldl join1 [] todo
 
 solve2 :: PuzzleInput -> Int
 solve2 = const (-1)
@@ -66,16 +57,41 @@ solve2 = const (-1)
 
 
 
--- getPairs :: [a] -> [(a,a)]
--- getPairs [] = []
--- getPairs [x] = []
--- getPairs (x:y:xs) = (x,y):(getPairs (y:xs))
+
+
+inRange :: Action -> Bool
+inRange (_,(x,y,z)) = inRange1D x && inRange1D y && inRange1D z
+
+
+inRange1D :: Range -> Bool
+inRange1D (lo, hi) = abs lo <= 50 && abs hi <= 50
+
+
+-- take a list of disjoint cubes, add another cube by splitting on overlap
+join1 :: [Action] -> Action -> [Action]
+join1 [] x 
+  | fst x = [x]
+  | otherwise = []
+join1 (y:ys) x = if disjointActions x y then y:join1 ys x else result
+  where
+    result = if fst x
+              then l ++ i ++ foldl' join1 ys r
+              -- else trace ("\nY: " ++ show y ++ "\n" ++ show l ++ "\n" ++ show x ++ "\n") $ l ++ join1 ys x
+              else l ++ join1 ys x
+    (l,i,r) = splitAction y x
+
+
+
+
+disjointActions :: Action -> Action -> Bool
+disjointActions (_,x) (_,y) = disjoint x y
+
 
 getPairs [] = []
 getPairs xs = zip xs (tail xs)
 
 size :: Box -> Int
-size (x,y,z) = sum $ map (uncurry subtract) [x,y,z]
+size (x,y,z) = product $ map (\(lo,hi) -> hi-lo+1) [x,y,z]
 
 sizeAction :: Action -> Int
 sizeAction (_, b) = size b
@@ -83,13 +99,17 @@ sizeAction (_, b) = size b
 splitAction :: Action -> Action -> ([Action], [Action], [Action])
 splitAction (dir1, b1) (dir2, b2) = (lefts', ints', rights')
   where
-    lefts' = map (tuplate dir1) lefts
-    ints' = map (tuplate dir2) ints
-    rights' = map (tuplate dir2) rights
+    lefts' = map (pair dir1) lefts
+    ints' = map (pair dir2) ints
+    rights' = map (pair dir2) rights
     (lefts, ints, rights) = split b1 b2
 
-    tuplate x y = (x,y)
+    pair x y = (x,y)
 
+
+-- #TODO this is currently splitting into the cartesian product of the 3 1D splits, 
+--      could potentially make 26 boxes when 6 is max required
+-- Very slow, wrong answer
 split :: Box -> Box -> ([Box], [Box], [Box])
 split (x1,y1,z1) (x2,y2,z2) = (lefts, ints, rights)
   where
@@ -110,31 +130,26 @@ split (x1,y1,z1) (x2,y2,z2) = (lefts, ints, rights)
     (leftY, intY, rightY) = split1D y1 y2
     (leftZ, intZ, rightZ) = split1D z1 z2
 
+
+-- splitAlongAxis :: 
+
 split1D :: Range -> Range -> ([Range], [Range], [Range])
 split1D r1@(min1, max1) r2@(min2, max2) = result
   where
     result = case intersect1D r1 r2 of
       Nothing -> ([r1], [], [r2])
       Just int -> (removeRange r1 int, [int], removeRange r2 int)
-    -- result = (lefts, ints, rights)
-
-    -- lefts = shiftEnds $ getPairs $ filter (in1 &&& out2) xs
-    -- ints = getPairs $ filter (in1 &&& in2) xs
-    -- rights = shiftStarts $ getPairs $ filter (in2 &&& out1) xs
-
-    -- in1 x = (x>=min1) && (x<=max1)
-    -- in2 x = (x>=min2) && (x<=max2)
-    -- out1 x = (x <= min1) || (x >= max1)
-    -- out2 x = (x <= min2) || (x >= max2)
-
-    -- xs = sort [min1, max1, min2, max2]
 
 
+-- #TODO this can probably be cleaner
 removeRange r1@(min1, max1) r2@(min2, max2) = result
   where
+    -- trace ("removing " ++ show r2 ++ " from " ++ show r1 ++ ": " ++ show result) result
     result = filter (\(x,y) -> y>=x) $ parse 0 xs
     
-    xs = sortOn fst [(min1,0), (max1,0), (min2,1), (max2,1)]
+    -- make sure the range to be removed is first on tie
+    order x = 2*(fst x) +1 -(snd x)
+    xs = sortOn order [(min1,0), (max1,0), (min2,1), (max2,1)]
 
     parse _ [] = []
     parse _ [x] = []
@@ -145,10 +160,9 @@ removeRange r1@(min1, max1) r2@(min2, max2) = result
     parse 0 ((x1,0):(x2,0):xs) = (x1,x2):(parse 0 $ (x2+1,0):xs)
     parse 1 ((x1,0):(x2,0):xs) = (parse 1 $ xs)
 
+
 shiftStarts = filter (\(x,y) -> y>=x) . map (\(x,y) -> (x+1,y))
 shiftEnds = filter (\(x,y) -> y>=x) . map (\(x,y) -> (x,y-1))
-
-
 
 disjoint :: Box -> Box -> Bool
 disjoint (x1, y1, z1) (x2,y2,z2) = any (uncurry disjoint1D) $ zip [x1,y1,z1] [x2,y2,z2]
@@ -166,8 +180,8 @@ intersect1D r1@(min1, max1) r2@(min2, max2) = do
 
 
 
-
-
+triple :: (a -> b) -> (a,a,a) -> (b,b,b)
+triple f (x,y,z) = (f z, f y, f z)
 
 (&&&) :: (a -> Bool) -> (a -> Bool) -> (a -> Bool)
 (&&&) p q x = (p x) && (q x)
