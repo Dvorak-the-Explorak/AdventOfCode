@@ -31,8 +31,8 @@ main = do
   print result1
 
   putStr "Part 2: "
-  let result1 = solve2 vals
-  print result1
+  let result2 = solve2 vals
+  print result2
 
 
 
@@ -52,7 +52,10 @@ solve1 actions = sum $ map sizeAction $ disjointCubes
     disjointCubes = foldl join1 [] todo
 
 solve2 :: PuzzleInput -> Int
-solve2 = const (-1)
+solve2 actions = sum $ map sizeAction $ disjointCubes
+  where
+    todo = actions
+    disjointCubes = foldl join1 [] todo
 
 
 
