@@ -3,6 +3,7 @@ import Text.Parsec.Char
 
 import qualified Data.HashSet as Set
 import Data.Hashable
+import Data.Maybe
 
 import Data.List (foldl', permutations, sort)
 -- import Helpers (chain)
@@ -18,6 +19,7 @@ type PuzzleInput = [Scanner]
 type Scanner = Set Coord
 type Rotation = ((Int,Int,Int), (Int,Int,Int))
 type Offset = Coord
+type Transform = (Offset, Rotation)
 
 data Coord = Coord {
   x :: Int,
@@ -41,7 +43,7 @@ main = do
 
   putStr "Part 1: "
   let result1 = solve1 vals
-  print result1
+  print $ map length result1
 
   -- putStr "Part 2: "
   -- let result2 = solve2 vals
@@ -59,7 +61,7 @@ getPuzzleInput = do
 
 -- solve1 :: PuzzleInput-> Int
 -- solve1 scanners = Set.size $ combineAll scanners
-solve1 [a,b,c,d,e] = Set.size $ combineAll [a,e]
+solve1 scanners = combineSets $ combineSets $ map (:[]) $ tail scanners
 
 solve2 :: PuzzleInput -> Int
 solve2 = const (-1)
@@ -68,6 +70,25 @@ solve2 = const (-1)
 
 
 matchesRequired = 12
+
+
+
+
+
+
+
+
+
+combineSets :: [[Scanner]] -> [[Scanner]]
+combineSets [] = []
+combineSets [set] = [set]
+combineSets (s:sets) = s':sets'
+  where
+    (s', sets') = foldl' zippy (s,[]) sets
+    zippy (collection, others) next = case getT next of
+                                  Nothing -> (collection, next:others)
+                                  Just t -> (collection ++ map (transform t) next, others)
+    getT set = safeHead $ catMaybes [findTransform x y | x <- s, y <- set]
 
 
 combineAll ::[Scanner] -> Scanner
@@ -104,6 +125,26 @@ combine (x:y:xs) = case glue x y of
 --     offsetsZ = offsets1D projZ s1 s2
 
 
+findTransform ::  Scanner -> Scanner -> Maybe Transform
+findTransform  s1 s2 = result
+-- glue s1 s2 = trace (show $ (map fst) options ) $ Set.union s1 <$> (uncurry offset) <$> result
+  where
+    result = safeHead $ filter ((>=matchesRequired) . countMatch) allTransforms
+
+    countMatch :: Transform -> Int
+    countMatch (o,r) = match s1 $ (o, rotate r s2)
+
+    allTransforms :: [Transform]
+    allTransforms = [(o,r) | r <- sl3, o <- getOffsets (rotate r s2)]
+
+    getOffsets :: Scanner -> [Offset]
+    getOffsets s = [origin] ++ [Coord x y z | x <- offsetsX s, y <- offsetsY s, z <- offsetsZ s]
+
+    offsetsX :: Scanner -> [Int]
+    offsetsX s = offsets1D projX s1 s
+    offsetsY s = offsets1D projY s1 s
+    offsetsZ s = offsets1D projZ s1 s
+
 glue :: Scanner -> Scanner -> Maybe Scanner
 glue s1 s2 = Set.union s1 <$> (uncurry offset) <$> result
 -- glue s1 s2 = trace (show $ (map fst) options ) $ Set.union s1 <$> (uncurry offset) <$> result
@@ -123,10 +164,6 @@ glue s1 s2 = Set.union s1 <$> (uncurry offset) <$> result
     offsetsX s = offsets1D projX s1 s
     offsetsY s = offsets1D projY s1 s
     offsetsZ s = offsets1D projZ s1 s
-    -- offsetsX :: Scanner -> [Int]
-    -- offsetsX s = [-20]
-    -- offsetsY s = [-1133]
-    -- offsetsZ s = [1061]
 
 
 -- How many points match in the overlapping regions,
@@ -151,6 +188,7 @@ inBox (Coord x y z) (Coord cx cy cz) = xin && yin && zin
     zin = abs (cz - z) <= 1000
 
 origin = Coord 0 0 0
+identity = (origin, (1,1,1))
 
 
 offsets1D :: (Coord -> Int) -> Scanner -> Scanner -> [Int]
@@ -220,6 +258,9 @@ rotate ((i,j,k), (si,sj,sk)) scanner = Set.map rot scanner
   where
     rot (Coord x y z) = toCoord $ map (\(i,si) -> si * ([x,y,z] !! i)) [(i,si),(j,sj),(k,sk)]
     toCoord [x,y,z] = Coord x y z
+
+transform :: Transform -> Scanner -> Scanner
+transform (o,r) = offset o . rotate r 
 
 orientation :: Rotation -> Bool
 orientation (perm, (si,sj,sk)) = (==1) $ (permSign perm) * flipSign
