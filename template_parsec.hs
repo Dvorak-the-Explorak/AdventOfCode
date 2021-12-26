@@ -20,8 +20,8 @@ main = do
   print result1
 
   putStr "Part 2: "
-  let result1 = solve2 vals
-  print result1
+  let result2 = solve2 vals
+  print result2
 
 
 
