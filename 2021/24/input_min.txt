@@ -1,0 +1,51 @@
+z = [0..]
+
+# a
+z.insert(0, a + 1)
+
+# b
+z.insert(0, b + 9)
+
+# c
+z.insert(0, c + 12)
+
+# d
+z.insert(0, d + 6)
+
+
+#e
+e == d
+z.pop(0)
+
+#f
+f = (c+12) - 13
+z.pop(0)
+
+#g
+z.insert(0, g + 7)
+
+# h
+z.insert(0, h + 12)
+
+# i
+i == (h+12)-8
+z.pop(0)
+
+# j
+j == (g+7) -15
+z.pop(0)
+
+# k
+z.insert(0, K + 6)
+
+# l
+l == (k+6) - 11
+z.pop(0)
+
+# m
+m == (b+9) - 13
+z.pop(0)
+
+# n 
+n == (a+1) - 4
+z.pop(0)

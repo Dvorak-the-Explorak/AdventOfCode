@@ -1,0 +1,23 @@
+z = [0..]
+
+push a+1
+push b+9
+push c+12
+push d+6
+e = d
+pop
+f = c-2
+pop
+push g+7
+push h+12
+i = h+4
+pop
+j = g-8
+pop
+push k+6
+l = k-5
+pop
+m = b-4
+pop
+n = a-3
+pop

@@ -1,0 +1,91 @@
+z = [0..]
+
+w = next(input)
+x = z[0] + 10
+if x != w:
+	z.insert(0, w + 1)
+
+
+w = next(input)
+x = z[0] + 11
+if x != w:
+	z.insert(0, w + 9)
+
+
+w = next(input)
+x = z[0] + 14
+if x != w:
+	z.insert(0, w + 12)
+
+
+w = next(input)
+x = z[0] + 13
+if x != w:
+	z.insert(0, w + 6)
+
+
+w = next(input)
+x = z[0] + -6
+z.pop(0)
+if x != w:
+	z.insert(0, w + 9)
+
+
+w = next(input)
+x = z[0] + -14
+z.pop(0)
+if x != w:
+	z.insert(0, w + 15)
+
+
+w = next(input)
+x = z[0] + 14
+if x != w:
+	z.insert(0, w + 7)
+
+
+w = next(input)
+x = z[0] + 13
+if x != w:
+	z.insert(0, w + 12)
+
+
+w = next(input)
+x = z[0] + -8
+z.pop(0)
+if x != w:
+	z.insert(0, w + 15)
+
+
+w = next(input)
+x = z[0] + -15
+z.pop(0)
+if x != w:
+	z.insert(0, w + 3)
+
+
+w = next(input)
+x = z[0] + 10
+if x != w:
+	z.insert(0, w + 6)
+
+
+w = next(input)
+x = z[0] + -11
+z.pop(0)
+if x != w:
+	z.insert(0, w + 2)
+
+
+w = next(input)
+x = z[0] + -13
+z.pop(0)
+if x != w:
+	z.insert(0, w + 10)
+
+
+w = next(input)
+x = z[0] + -4
+z.pop(0)
+if x != w:
+	z.insert(0, w + 12)
