@@ -1,3 +1,4 @@
+{-# LANGUAGE TupleSections #-}
 import Text.ParserCombinators.Parsec hiding (State, (*))
 import Text.Parsec.Char hiding ((*))
 
@@ -81,14 +82,19 @@ main = do
 
 
 test = do
-  let n = 30 :: Int
-  rands <- replicateM (n * 3) (getStdRandom random) :: IO [Int]
-  let scanner = makeScanner n rands
+  scanner <- randomScanner 30
 
-  testCoord
   testGeometry scanner
 
   putStrLn "Tests passed."
+
+
+testGeometry scanner = do
+  testCoord
+  testOffsets scanner
+  testOffsetRotation scanner
+  return ()
+
 
 testCoord = do
   c1 <- randomCoord
@@ -103,7 +109,17 @@ testCoord = do
                           "\nc2+c1: " ++ show r2
   return ()
 
-testGeometry scanner = do
+
+testOffsetRotation scanner = do
+  off <- randomCoord
+  let offsetRotate = map (\r -> rotate r $ offset off scanner) sl3 :: [Scanner]
+  let rotateOffset = map (\r -> offset off $ rotate r scanner) sl3 :: [Scanner]
+
+  when (any id $ zipWith (/=) offsetRotate rotateOffset) $ fail $ show "Offset and rotation doesn't commute"
+
+
+
+testOffsets scanner = do
   offset1 <- randomCoord
   offset2 <- randomCoord
 
@@ -113,23 +129,29 @@ testGeometry scanner = do
 
   let offsetsDescription = "o1: " ++ show offset1 ++ "\no2: " ++ show offset2 ++ "\n"
 
-  when (s1 /= s2) $ fail $ "Offsets not commutative!\n" ++ offsetsDescription ++ "\n\n" ++ show s1 ++ "\n\n" ++ show s2
-  when (s1 /= s3) $ fail $ "Offset doesn't distribute over addition!\n" ++ offsetsDescription ++ "\n\n" ++ show s1 ++ "\n\n" ++ show s3
+  when (s1 /= s2) $ fail $ "Offsets not commutative!\n" ++ 
+                            show scanner ++ "\n\n" ++ 
+                            offsetsDescription ++ "\n\n" ++ 
+                            show s1 ++ "\n\n" ++ 
+                            show s2
+  when (s1 /= s3) $ fail $ "Offset doesn't distribute over addition!\n"++ 
+                            show scanner ++ "\n\n" ++ 
+                            offsetsDescription ++ "\n\n" ++ 
+                            show s1 ++ "\n\n" ++ 
+                            show s3
   return ()
-  
-
 
 
 randomCoord :: IO Coord
 randomCoord = do
-  [x,y,z] <- replicateM 3 (getStdRandom random) :: IO [Int]
+  [x,y,z] <- map ((subtract 1) . (`mod` 2000)) <$> replicateM 3 (getStdRandom random) :: IO [Int]
   return $ Coord x y z
     
 
-makeScanner :: Int -> [Int] -> Scanner
-makeScanner count rands = (origin, Set.fromList coords)
-  where
-    coords = take count $ map makeCoord $ triples $ map ((subtract 1) . (`mod` 2000)) rands
+randomScanner :: Int -> IO Scanner
+randomScanner count = do
+  coords <- replicateM count randomCoord
+  return (origin, Set.fromList coords)
 
 
 
@@ -147,7 +169,7 @@ getPuzzleInput = do
 
 -- solve1 :: PuzzleInput-> Int
 -- solve1 scanners = Set.size $ combineAll scanners
-solve1 scanners =  combineSets $  combineSets $ map (:[]) scanners
+solve1 scanners =  combineSets $ combineSets $ map (:[]) scanners
 
 solve2 :: PuzzleInput -> Int
 solve2 = const (-1)
@@ -155,7 +177,7 @@ solve2 = const (-1)
 
 
 
-matchesRequired = 12
+matchesRequired = 13
 
 
 combineSets :: [[Scanner]] -> [[Scanner]]
@@ -167,12 +189,17 @@ combineSets (s:sets) = s':(combineSets sets')
     (s', sets') = foldl' zippy (s,[]) sets
     zippy (collection, others) next = case getT next of
                                   Nothing -> (collection, next:others)
-                                  Just t -> (collection ++ map (transform t) next, others)
+                                  Just (t, match) -> (collection ++ map (followTransform t match) next, others)
+-- -- ==================================    This bit is wrong     vvvvvvvvvvvvv  ===========================================
+--                                   Just t -> (collection ++ map (transform t) next, others)
+-- -- ==================================    This bit is wrong     ^^^^^^^^^^^^^ ===========================================
     getT set = safeHead $ catMaybes [findTransform x y | x <- s, y <- set]
 
+    followTransform t source target = offset (fst t) $ offset (fst source) $ rotate (snd t) $ offset (negate $ fst source) target
 
-findTransform ::  Scanner -> Scanner -> Maybe Transform
-findTransform  s1 s2 = result
+
+findTransform ::  Scanner -> Scanner -> Maybe (Transform, Scanner)
+findTransform  s1 s2 = (,s2) <$> result
   where
     result = safeHead $ filter ((>=matchesRequired) . countMatch) allTransforms
 
