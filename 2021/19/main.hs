@@ -10,8 +10,8 @@ import Control.Monad (replicateM, when)
 
 import Data.List (foldl', permutations, sort, reverse, sortOn)
 import Helpers (groupsOf, triples)
-import Debug.Trace
 
+import Debug.Trace
 ttrace x = trace (show x) x
 
 type Set = Set.HashSet
@@ -77,88 +77,6 @@ main = do
 
 
 
-
-
-
-
-test = do
-  scanner <- randomScanner 30
-
-  testGeometry scanner
-
-  putStrLn "Tests passed."
-
-
-testGeometry scanner = do
-  testCoord
-  testOffsets scanner
-  testOffsetRotation scanner
-  return ()
-
-
-testCoord = do
-  c1 <- randomCoord
-  c2 <- randomCoord
-
-  let r1 = c1 + c2
-  let r2 = c2 + c1
-
-  when (r1 /= r2) $ fail $ "Coord addition not commutative!\nc1: " ++ show c1 ++ 
-                          "\nc2: " ++ show c2 ++ 
-                          "\nc1+c2: " ++ show r1 ++ 
-                          "\nc2+c1: " ++ show r2
-  return ()
-
-
-testOffsetRotation scanner = do
-  off <- randomCoord
-  let offsetRotate = map (\r -> rotate r $ offset off scanner) sl3 :: [Scanner]
-  let rotateOffset = map (\r -> offset off $ rotate r scanner) sl3 :: [Scanner]
-
-  when (any id $ zipWith (/=) offsetRotate rotateOffset) $ fail $ show "Offset and rotation doesn't commute"
-
-
-
-testOffsets scanner = do
-  offset1 <- randomCoord
-  offset2 <- randomCoord
-
-  let s1 = offset offset2 $ offset offset1 scanner
-  let s2 = offset offset1 $ offset offset2 scanner
-  let s3 = offset (offset2 + offset1) scanner
-
-  let offsetsDescription = "o1: " ++ show offset1 ++ "\no2: " ++ show offset2 ++ "\n"
-
-  when (s1 /= s2) $ fail $ "Offsets not commutative!\n" ++ 
-                            show scanner ++ "\n\n" ++ 
-                            offsetsDescription ++ "\n\n" ++ 
-                            show s1 ++ "\n\n" ++ 
-                            show s2
-  when (s1 /= s3) $ fail $ "Offset doesn't distribute over addition!\n"++ 
-                            show scanner ++ "\n\n" ++ 
-                            offsetsDescription ++ "\n\n" ++ 
-                            show s1 ++ "\n\n" ++ 
-                            show s3
-  return ()
-
-
-randomCoord :: IO Coord
-randomCoord = do
-  [x,y,z] <- map ((subtract 1) . (`mod` 2000)) <$> replicateM 3 (getStdRandom random) :: IO [Int]
-  return $ Coord x y z
-    
-
-randomScanner :: Int -> IO Scanner
-randomScanner count = do
-  coords <- replicateM count randomCoord
-  return (origin, Set.fromList coords)
-
-
-
-
-
-
-
 getPuzzleInput :: IO PuzzleInput
 getPuzzleInput = do
   input <- getContents
@@ -177,7 +95,7 @@ solve2 = const (-1)
 
 
 
-matchesRequired = 13
+matchesRequired = 12
 
 
 combineSets :: [[Scanner]] -> [[Scanner]]
@@ -195,7 +113,10 @@ combineSets (s:sets) = s':(combineSets sets')
 -- -- ==================================    This bit is wrong     ^^^^^^^^^^^^^ ===========================================
     getT set = safeHead $ catMaybes [findTransform x y | x <- s, y <- set]
 
-    followTransform t source target = offset (fst t) $ offset (fst source) $ rotate (snd t) $ offset (negate $ fst source) target
+    followTransform t source target = offset (fst t) $ 
+                                      offset (fst source) $ 
+                                      rotate (snd t) $ 
+                                      offset (negate $ fst source) target
 
 
 findTransform ::  Scanner -> Scanner -> Maybe (Transform, Scanner)
@@ -368,3 +289,97 @@ integer = do
     
 end :: Parser ()
 end = (endOfLine >> return ()) <|> eof
+
+
+
+
+-- =========================================================
+--                             Tests
+-- =========================================================
+
+
+
+
+test = do
+  scanner <- randomScanner 30
+
+  testGeometry scanner
+
+  putStrLn "Tests passed."
+
+
+testGeometry scanner = do
+  testCoord
+  testOffsets scanner
+  testOffsetRotation scanner
+  return ()
+
+
+testCoord = do
+  c1 <- randomCoord
+  c2 <- randomCoord
+
+  let r1 = c1 + c2
+  let r2 = c2 + c1
+
+  when (r1 /= r2) $ fail $ "Coord addition not commutative!\nc1: " ++ show c1 ++ 
+                          "\nc2: " ++ show c2 ++ 
+                          "\nc1+c2: " ++ show r1 ++ 
+                          "\nc2+c1: " ++ show r2
+
+  when (c1 + (-c1) /= origin) $ fail $ "Coord negate isn't additive inverse!\nc1: " ++ show c1 ++ 
+                          "\nc2: " ++ show (-c1) ++ 
+                          "\nc1+c2: " ++ show (c1 + (-c1)) ++ 
+                          "\nc2+c1: " ++ show (c1 - c1)
+  return ()
+
+
+testOffsetRotation scanner = do
+  off <- randomCoord
+  let offsetRotate = map (\r -> rotate r $ offset off scanner) sl3 :: [Scanner]
+  let rotateOffset = map (\r -> offset off $ rotate r scanner) sl3 :: [Scanner]
+
+  when (any id $ zipWith (/=) offsetRotate rotateOffset) $ fail $ show "Offset and rotation doesn't commute"
+
+
+
+testOffsets scanner = do
+  offset1 <- randomCoord
+  offset2 <- randomCoord
+
+  let s0 = offset (-offset1) $ offset (offset1) scanner
+  let s1 = offset offset2 $ offset offset1 scanner
+  let s2 = offset offset1 $ offset offset2 scanner
+  let s3 = offset (offset2 + offset1) scanner
+
+  let offsetsDescription = "o1: " ++ show offset1 ++ "\no2: " ++ show offset2 ++ "\n"
+
+  when (s0 /= scanner) $ fail $ "Offset of inverse not inverse of offset!\n" ++ 
+                            show scanner ++ "\n\n" ++ 
+                            show offset1 ++ "\n\n" ++ 
+                            show s0
+  when (s1 /= s2) $ fail $ "Offsets not commutative!\n" ++ 
+                            show scanner ++ "\n\n" ++ 
+                            offsetsDescription ++ "\n\n" ++ 
+                            show s1 ++ "\n\n" ++ 
+                            show s2
+  when (s1 /= s3) $ fail $ "Offset doesn't distribute over addition!\n"++ 
+                            show scanner ++ "\n\n" ++ 
+                            offsetsDescription ++ "\n\n" ++ 
+                            show s1 ++ "\n\n" ++ 
+                            show s3
+  return ()
+
+
+randomCoord :: IO Coord
+randomCoord = do
+  [x,y,z] <- map ((subtract 1) . (`mod` 2000)) <$> replicateM 3 (getStdRandom random) :: IO [Int]
+  return $ Coord x y z
+    
+
+randomScanner :: Int -> IO Scanner
+randomScanner count = do
+  coords <- replicateM count randomCoord
+  return (origin, Set.fromList coords)
+
+
