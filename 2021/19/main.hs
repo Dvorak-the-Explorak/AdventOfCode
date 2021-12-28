@@ -55,26 +55,22 @@ part1 = True
 main = do
   vals <- getPuzzleInput
 
-  test
+  -- test
 
   -- mapM print vals
   -- putStrLn ""
 
-
   putStr "Part 1: "
   let result1 = solve1 vals
   print $ map length result1
-  let allPoints = foldl' Set.union Set.empty $ map (snd) $ head result1
+  let allPoints = foldl' Set.union Set.empty $ map (snd) $ concat result1
   print $ Set.size allPoints
   -- mapM print $ sortOn (\(Coord x _ _) -> x) $ Set.toList allPoints
   return ()
 
-  -- putStr "Part 2: "
-  -- let result2 = solve2 vals
-  -- print result2
-
-
-
+  putStr "Part 2: "
+  let result2 = solve2 $ concat result1
+  print result2
 
 
 getPuzzleInput :: IO PuzzleInput
@@ -87,13 +83,24 @@ getPuzzleInput = do
 
 -- solve1 :: PuzzleInput-> Int
 -- solve1 scanners = Set.size $ combineAll scanners
-solve1 scanners =  combineSets $ combineSets $ map (:[]) scanners
+solve1 scanners = solve $ map (:[]) scanners
+  where 
+    solve [] = []
+    solve [x] = [x]
+    solve xs = let xs' = combineSets xs in
+                if length xs' == length xs 
+                  then error "Oh no couldn't combine scanners"
+                  else trace (show $ map length xs') solve xs'
 
 solve2 :: PuzzleInput -> Int
-solve2 = const (-1)
+solve2 scanners = maximum $ map (uncurry scannerDist) [(s1,s2) | s1 <- scanners, s2 <- scanners]
 
 
+dist :: Coord -> Coord -> Int
+dist (Coord x1 y1 z1) (Coord x2 y2 z2) = (abs $ x1-x2) + (abs $ y1-y2) + (abs $ z1-z2)
 
+scannerDist :: Scanner -> Scanner -> Int
+scannerDist (c1, _) (c2,_) = dist c1 c2
 
 matchesRequired = 12
 
@@ -107,10 +114,10 @@ combineSets (s:sets) = s':(combineSets sets')
     (s', sets') = foldl' zippy (s,[]) sets
     zippy (collection, others) next = case getT next of
                                   Nothing -> (collection, next:others)
-                                  Just (t, match) -> (collection ++ map (followTransform t match) next, others)
--- -- ==================================    This bit is wrong     vvvvvvvvvvvvv  ===========================================
---                                   Just t -> (collection ++ map (transform t) next, others)
--- -- ==================================    This bit is wrong     ^^^^^^^^^^^^^ ===========================================
+                                  -- Just (t, match) -> (collection ++ map (followTransform t match) next, others)
+-- ==================================    This bit is wrong     vvvvvvvvvvvvv  ===========================================
+                                  Just t -> (collection ++ map (transform t) next, others)
+-- ==================================    This bit is wrong     ^^^^^^^^^^^^^ ===========================================
     getT set = safeHead $ catMaybes [findTransform x y | x <- s, y <- set]
 
     followTransform t source target = offset (fst t) $ 
@@ -119,8 +126,10 @@ combineSets (s:sets) = s':(combineSets sets')
                                       offset (negate $ fst source) target
 
 
-findTransform ::  Scanner -> Scanner -> Maybe (Transform, Scanner)
-findTransform  s1 s2 = (,s2) <$> result
+-- findTransform ::  Scanner -> Scanner -> Maybe (Transform, Scanner)
+-- findTransform  s1 s2 = (,s2) <$> result
+findTransform ::  Scanner -> Scanner -> Maybe Transform
+findTransform  s1 s2 = result
   where
     result = safeHead $ filter ((>=matchesRequired) . countMatch) allTransforms
 
@@ -202,7 +211,7 @@ offset o (center, scanner) = (center+o, Set.map (+o) scanner)
 
 
 rotate :: Rotation -> Scanner -> Scanner
-rotate r1@((i,j,k), (si,sj,sk)) (center, scanner) = (center, Set.map ((+center) . rot . (+(-center))) scanner)
+rotate r1@((i,j,k), (si,sj,sk)) (center, scanner) = (rot center, Set.map rot scanner)
   where
     rot (Coord x y z) = toCoord $ map (\(i,si) -> si * ([x,y,z] !! i)) [(i,si),(j,sj),(k,sk)]
     toCoord [x,y,z] = Coord x y z
