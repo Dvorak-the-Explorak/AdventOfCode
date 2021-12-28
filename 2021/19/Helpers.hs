@@ -23,3 +23,18 @@ unique = trim . sort
     trim (x:y:xs) | x == y = trim (x:xs)
                   | otherwise = (x:) $ trim (y:xs)
     trim xs = xs
+
+groupsOf :: Int -> [a] -> [[a]]
+groupsOf 0 _ = []
+groupsOf _ [] = []
+groupsOf n xs = if n == length g 
+                  then (g:) $ groupsOf n $ drop n xs
+                  else []
+  where
+    g = take n xs
+
+triples :: [a] -> [(a,a,a)]
+triples [] = []
+triples [x] = []
+triples [x,y] = []
+triples (x:y:z:xs) = (x,y,z):(triples xs)

@@ -1,12 +1,14 @@
-import Text.ParserCombinators.Parsec hiding (State)
-import Text.Parsec.Char
+import Text.ParserCombinators.Parsec hiding (State, (*))
+import Text.Parsec.Char hiding ((*))
 
 import qualified Data.HashSet as Set
 import Data.Hashable
 import Data.Maybe
+import System.Random
+import Control.Monad (replicateM, when)
 
-import Data.List (foldl', permutations, sort)
--- import Helpers (chain)
+import Data.List (foldl', permutations, sort, reverse, sortOn)
+import Helpers (groupsOf, triples)
 import Debug.Trace
 
 ttrace x = trace (show x) x
@@ -16,7 +18,7 @@ type Set = Set.HashSet
 
 
 type PuzzleInput = [Scanner]
-type Scanner = Set Coord
+type Scanner = (Offset, Set Coord)
 type Rotation = ((Int,Int,Int), (Int,Int,Int))
 type Offset = Coord
 type Transform = (Offset, Rotation)
@@ -26,16 +28,33 @@ data Coord = Coord {
   y :: Int,
   z :: Int
 } deriving (Eq)
+makeCoord :: (Int,Int,Int) -> Coord
+makeCoord (x,y,z) = Coord x y z
+
 
 instance Show Coord where
   show (Coord x y z) = "(" ++ show x ++ "," ++ show y ++ "," ++ show z ++ ")"
 instance Hashable Coord where
   hashWithSalt s (Coord x y z) = hashWithSalt s (x,y,z)
+instance Num Coord where
+  negate (Coord x y z) = Coord (-x) (-y) (-z)
+  (+) (Coord x1 y1 z1) (Coord x2 y2 z2) = Coord (x1+x2) (y1+y2) (z1+z2) 
+  (*) (Coord x1 y1 z1) (Coord x2 y2 z2) = Coord (x1*x2) (y1*y2) (z1*z2) 
+  fromInteger x = Coord (fromInteger x) (fromInteger x) (fromInteger x)
+  abs (Coord x y z) = Coord (abs x) (abs y) (abs z)
+  signum (Coord x y z) = if x*y*z == 0 
+                            then 0 
+                            else
+                              if all (==1) [signum x, signum y, signum z] 
+                                then 1 
+                                else -1
 
 part1 = True
 
 main = do
   vals <- getPuzzleInput
+
+  test
 
   -- mapM print vals
   -- putStrLn ""
@@ -44,10 +63,77 @@ main = do
   putStr "Part 1: "
   let result1 = solve1 vals
   print $ map length result1
+  let allPoints = foldl' Set.union Set.empty $ map (snd) $ head result1
+  print $ Set.size allPoints
+  -- mapM print $ sortOn (\(Coord x _ _) -> x) $ Set.toList allPoints
+  return ()
 
   -- putStr "Part 2: "
   -- let result2 = solve2 vals
   -- print result2
+
+
+
+
+
+
+
+
+
+test = do
+  let n = 30 :: Int
+  rands <- replicateM (n * 3) (getStdRandom random) :: IO [Int]
+  let scanner = makeScanner n rands
+
+  testCoord
+  testGeometry scanner
+
+  putStrLn "Tests passed."
+
+testCoord = do
+  c1 <- randomCoord
+  c2 <- randomCoord
+
+  let r1 = c1 + c2
+  let r2 = c2 + c1
+
+  when (r1 /= r2) $ fail $ "Coord addition not commutative!\nc1: " ++ show c1 ++ 
+                          "\nc2: " ++ show c2 ++ 
+                          "\nc1+c2: " ++ show r1 ++ 
+                          "\nc2+c1: " ++ show r2
+  return ()
+
+testGeometry scanner = do
+  offset1 <- randomCoord
+  offset2 <- randomCoord
+
+  let s1 = offset offset2 $ offset offset1 scanner
+  let s2 = offset offset1 $ offset offset2 scanner
+  let s3 = offset (offset2 + offset1) scanner
+
+  let offsetsDescription = "o1: " ++ show offset1 ++ "\no2: " ++ show offset2 ++ "\n"
+
+  when (s1 /= s2) $ fail $ "Offsets not commutative!\n" ++ offsetsDescription ++ "\n\n" ++ show s1 ++ "\n\n" ++ show s2
+  when (s1 /= s3) $ fail $ "Offset doesn't distribute over addition!\n" ++ offsetsDescription ++ "\n\n" ++ show s1 ++ "\n\n" ++ show s3
+  return ()
+  
+
+
+
+randomCoord :: IO Coord
+randomCoord = do
+  [x,y,z] <- replicateM 3 (getStdRandom random) :: IO [Int]
+  return $ Coord x y z
+    
+
+makeScanner :: Int -> [Int] -> Scanner
+makeScanner count rands = (origin, Set.fromList coords)
+  where
+    coords = take count $ map makeCoord $ triples $ map ((subtract 1) . (`mod` 2000)) rands
+
+
+
+
 
 
 
@@ -61,7 +147,7 @@ getPuzzleInput = do
 
 -- solve1 :: PuzzleInput-> Int
 -- solve1 scanners = Set.size $ combineAll scanners
-solve1 scanners = combineSets $ combineSets $ map (:[]) $ tail scanners
+solve1 scanners =  combineSets $  combineSets $ map (:[]) scanners
 
 solve2 :: PuzzleInput -> Int
 solve2 = const (-1)
@@ -72,17 +158,11 @@ solve2 = const (-1)
 matchesRequired = 12
 
 
-
-
-
-
-
-
-
 combineSets :: [[Scanner]] -> [[Scanner]]
 combineSets [] = []
 combineSets [set] = [set]
-combineSets (s:sets) = s':sets'
+-- combineSets (s:sets) = s':(combineSets sets')
+combineSets (s:sets) = s':(combineSets sets')
   where
     (s', sets') = foldl' zippy (s,[]) sets
     zippy (collection, others) next = case getT next of
@@ -91,48 +171,13 @@ combineSets (s:sets) = s':sets'
     getT set = safeHead $ catMaybes [findTransform x y | x <- s, y <- set]
 
 
-combineAll ::[Scanner] -> Scanner
-combineAll [x] = x
-combineAll scanners = result
-  where
-    scanners' = combine scanners
-    result = if length scanners' == 1
-              then head scanners' 
-              else if length scanners == length scanners'
-                    then error $ "Couln't combine scanners!"
-                    else combineAll scanners'
-
-combine :: [Scanner] -> [Scanner]
-combine [] = []
-combine [x] = [x]
-combine (x:y:xs) = case glue x y of
-                  Nothing -> (x:) $ combine (y:xs)
-                  -- Nothing -> trace ("Can't combine: " ++ show (x, y) ++ "\n") $ (x:) $ combine (y:xs)
-                  Just g -> trace (show g) $ combine (g:xs)
-
--- glue :: Scanner -> Scanner -> Maybe Scanner
--- glue s1 s2 = trace ("Offsets:\n" ++ show offsetsX ++ "\n" ++ show offsetsY ++ "\n" ++ show offsetsZ ++ "\n\n") $ Set.union s1 . (uncurry offset) <$> result
---   where
-
---     -- result = safeHead $ filter (\x -> if ((>=matchesRequired) $ match s1 $ x) then trace (show x) True else False) options
---     result = safeHead $ filter ((>=matchesRequired) . match s1) options
-
---     options = [(o,s) | o <- allOffsets,  s <- allRotations s2]
---     allOffsets = [origin] ++ [Coord x y z | x <- offsetsX, y <- offsetsY, z <- offsetsZ]
-
---     offsetsX = offsets1D projX s1 s2
---     offsetsY = offsets1D projY s1 s2
---     offsetsZ = offsets1D projZ s1 s2
-
-
 findTransform ::  Scanner -> Scanner -> Maybe Transform
 findTransform  s1 s2 = result
--- glue s1 s2 = trace (show $ (map fst) options ) $ Set.union s1 <$> (uncurry offset) <$> result
   where
     result = safeHead $ filter ((>=matchesRequired) . countMatch) allTransforms
 
     countMatch :: Transform -> Int
-    countMatch (o,r) = match s1 $ (o, rotate r s2)
+    countMatch t = match s1 $ transform t s2
 
     allTransforms :: [Transform]
     allTransforms = [(o,r) | r <- sl3, o <- getOffsets (rotate r s2)]
@@ -145,38 +190,17 @@ findTransform  s1 s2 = result
     offsetsY s = offsets1D projY s1 s
     offsetsZ s = offsets1D projZ s1 s
 
-glue :: Scanner -> Scanner -> Maybe Scanner
-glue s1 s2 = Set.union s1 <$> (uncurry offset) <$> result
--- glue s1 s2 = trace (show $ (map fst) options ) $ Set.union s1 <$> (uncurry offset) <$> result
-  where
-    result = safeHead $ filter ((>=matchesRequired) . match s1) options
-
-    options  :: [(Coord, Scanner)]
-    options = concatMap getOffsets $ allRotations s2
-
-    getOffsets :: Scanner -> [(Coord, Scanner)]
-    getOffsets s = map (\o -> (o,s)) $ allOffsets s
-
-    allOffsets :: Scanner -> [Coord]
-    allOffsets s = [origin] ++ [Coord x y z | x <- offsetsX s, y <- offsetsY s, z <- offsetsZ s]
-
-    offsetsX :: Scanner -> [Int]
-    offsetsX s = offsets1D projX s1 s
-    offsetsY s = offsets1D projY s1 s
-    offsetsZ s = offsets1D projZ s1 s
-
 
 -- How many points match in the overlapping regions,
 --  returns 0 if any unmatched points in overlap
-match :: Scanner -> (Offset, Scanner)  -> Int
-match scan1 (off, scan2) = result
+match :: Scanner -> Scanner  -> Int
+match scan1 scan2 = result
   where
     result = if coords1 == coords2 
               then Set.size coords1 
               else 0
-    scan2' = offset off scan2
-    coords2 = Set.filter (inBox off) scan1
-    coords1 = Set.filter (inBox origin) scan2'
+    coords2 = Set.filter (inBox $ fst scan2) $ snd scan1
+    coords1 = Set.filter (inBox $ fst scan1) $ snd scan2
  
 
 
@@ -188,16 +212,13 @@ inBox (Coord x y z) (Coord cx cy cz) = xin && yin && zin
     zin = abs (cz - z) <= 1000
 
 origin = Coord 0 0 0
-identity = (origin, (1,1,1))
-
 
 offsets1D :: (Coord -> Int) -> Scanner -> Scanner -> [Int]
 offsets1D proj s1 s2 = filter twelve [minOffset..maxOffset]
--- offsets1D proj s1 s2 = trace ("\n" ++ show s1' ++ "\n" ++ show (map (subtract 68) s2') ++ "\n") $ filter twelve [-2000..2000]
   where
     -- lists of projected coordinates
-    s1' = sort $ map proj $ Set.toList s1
-    s2' = sort $ map proj $ Set.toList s2
+    s1' = sort $ map proj $ Set.toList $ snd s1
+    s2' = sort $ map proj $ Set.toList $ snd s2
 
     maxOffset = last s1' - head s2'
     minOffset = head s1' - last s2'
@@ -211,19 +232,6 @@ offsets1D proj s1 s2 = filter twelve [minOffset..maxOffset]
       | x < y = countMatches xs (y:ys)
       | otherwise = countMatches (x:xs) ys
 
-
-diff xs = zipWith subtract xs (tail xs)
-
-
-
--- projX :: Scanner -> [Int]
--- projX scanner = Set.map (\(Coord x _ _) -> x) $ scanner
-
--- projY :: Scanner -> [Int]
--- projY scanner = Set.map (\(Coord _ y _) -> y) $ scanner
-
--- projZ :: Scanner -> [Int]
--- projZ scanner = Set.map (\(Coord _ _ z) -> z) $ scanner
 
 
 projX :: Coord -> Int
@@ -241,20 +249,12 @@ projZ (Coord _ _ z) = z
 
 
 
-
-
-
-
-
-allRotations :: Scanner -> [Scanner]
-allRotations s = map ($s) $ map rotate sl3
-
 offset :: Coord -> Scanner -> Scanner
-offset (Coord x y z) scanner = Set.map (\(Coord a b c) -> Coord (a+x) (b+y) (c+z)) scanner
+offset o (center, scanner) = (center+o, Set.map (+o) scanner)
 
 
 rotate :: Rotation -> Scanner -> Scanner
-rotate ((i,j,k), (si,sj,sk)) scanner = Set.map rot scanner
+rotate r1@((i,j,k), (si,sj,sk)) (center, scanner) = (center, Set.map ((+center) . rot . (+(-center))) scanner)
   where
     rot (Coord x y z) = toCoord $ map (\(i,si) -> si * ([x,y,z] !! i)) [(i,si),(j,sj),(k,sk)]
     toCoord [x,y,z] = Coord x y z
@@ -309,7 +309,7 @@ scannerP = do
 
 
   points <- many1 (coordP <* end)
-  return $ Set.fromList points
+  return $ (origin, Set.fromList points)
 
 coordP :: Parser Coord
 coordP = do
