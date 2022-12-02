@@ -34,6 +34,7 @@ solve1 = maximum . map sum
 solve2 :: PuzzleInput -> Int
 solve2 = sum . take 3 . reverse . sort . map sum
 
+
 -- =========================================================
 --                             Parsers
 -- =========================================================
