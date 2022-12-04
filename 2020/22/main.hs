@@ -2,6 +2,7 @@ import Text.ParserCombinators.Parsec hiding (State)
 import Text.Parsec.Char
 
 import Data.List (foldl', reverse)
+import Data.Either.Extra (fromEither)
 import qualified Data.Set as Set
 -- import Helpers (chain)
 
@@ -35,36 +36,31 @@ getPuzzleInput = do
     (Left err) -> fail $ show err
     (Right puzzleInput) -> return puzzleInput
 
+nextHand :: PuzzleInput -> PuzzleInput
+nextHand ((x:xs), (y:ys)) = 
+  if x > y
+    then (xs ++ [x, y], ys)
+    else (xs, ys ++ [y, x])
 
 solve1 :: PuzzleInput -> Int
 solve1 ([], xs) = evaluate xs
 solve1 (xs, []) = evaluate xs
-solve1 ((x:xs), (y:ys)) = 
-  if x > y
-    then solve1 (xs ++ [x, y], ys)
-    else solve1 (xs, ys ++ [y, x])
-
+solve1 decks = solve1 $ nextHand decks
 
 solve2 :: PuzzleInput -> Int
-solve2 decks = if oneWins
-          then evaluate xs
-          else evaluate ys
-  where
-    (oneWins, (xs,ys)) = crabs Set.empty decks
+solve2 = evaluate . fromEither . crabs Set.empty
 
-crabs :: Context -> PuzzleInput -> (Bool, PuzzleInput)
-crabs prev ([], ys) = (False, ([], ys))
-crabs prev (xs, []) = (True, (xs, []))
-crabs prev (xss@(x:xs),yss@(y:ys)) 
-  | Set.member (xss,yss) prev = (True, (xss, yss))
-  | otherwise = if x <= length xs && y <= length ys
-                  then let (oneWins, _) = crabs (Set.insert (xss, yss) prev) (take x xs, take y ys)
-                        in if oneWins 
-                            then crabs (Set.insert (xss, yss) prev) (xs ++ [x, y], ys)
-                            else crabs (Set.insert (xss, yss) prev) (xs, ys ++ [y, x])
-                  else if x > y
-                        then crabs (Set.insert (xss, yss) prev) (xs ++ [x, y], ys)
-                        else crabs (Set.insert (xss, yss) prev) (xs, ys ++ [y, x])
+crabs :: Context -> PuzzleInput -> Either Deck Deck
+crabs prev ([], ys) = Right ys
+crabs prev (xs, []) = Left xs
+crabs prev decks@(xss@(x:xs),yss@(y:ys))
+  | Set.member (xss,yss) prev = Left xss
+  | otherwise = let context = Set.insert decks prev
+                in if x <= length xs && y <= length ys
+                    then case crabs context (take x xs, take y ys) of
+                          (Left _)  -> crabs context (xs ++ [x, y], ys)
+                          (Right _) -> crabs context (xs, ys ++ [y, x])
+                    else crabs context $ nextHand decks
 
 evaluate :: Deck -> Int
 evaluate = sum . map (uncurry (*)) . zip [1..] . reverse
