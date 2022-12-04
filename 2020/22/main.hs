@@ -10,14 +10,14 @@ import qualified Data.Set as Set
 import Debug.Trace (trace)
 
 -- example
-type PuzzleInput = (Deck, Deck)
+type Decks = (Deck, Deck)
 type Deck = [Int]
-type Context = Set.Set PuzzleInput
+type Context = Set.Set Decks
 
 part1 = True
 
 main = do
-  vals <- getPuzzleInput
+  vals <- getDecks
 
   putStr "Part 1: "
   let result1 = solve1 vals
@@ -29,8 +29,8 @@ main = do
 
 
 
-getPuzzleInput :: IO PuzzleInput
-getPuzzleInput = do
+getDecks :: IO Decks
+getDecks = do
   input <- getContents
   let parseResult = parse puzzle "(unknown)" input
   case parseResult of
@@ -38,38 +38,39 @@ getPuzzleInput = do
     (Right puzzleInput) -> return puzzleInput
 
 
-solve1 :: PuzzleInput -> Int
+solve1 :: Decks -> Int
 solve1 ([], xs) = evaluate xs
 solve1 (xs, []) = evaluate xs
 solve1 decks = solve1 $ nextHand (>) decks
 
-solve2 :: PuzzleInput -> Int
+solve2 :: Decks -> Int
 solve2 = evaluate . fromEither . crabs Set.empty
 
 
 
-nextHand :: (Int -> Int -> Bool) -> PuzzleInput -> PuzzleInput
+nextHand :: (Int -> Int -> Bool) -> Decks -> Decks
 nextHand p ((x:xs), (y:ys)) =
   if p x y
     then (xs ++ [x, y], ys)
     else (xs, ys ++ [y, x])
 
-crabs :: Context -> PuzzleInput -> Either Deck Deck
+crabs :: Context -> Decks -> Either Deck Deck
 crabs prev ([], ys) = Right ys
 crabs prev (xs, []) = Left xs
-crabs prev decks@(x:xs, y:ys)
+crabs prev decks
   | Set.member decks prev = Left $ fst decks
-  | otherwise = let 
+  | otherwise = let
                   context = Set.insert decks prev
-                  subGameResult = isLeft $ crabs context (take x xs, take y ys)
+                  subGameResult = isLeft $ crabs context $ subGameDeck decks
                 in if shouldRecurse decks
                     then crabs context $ nextHand (const $ const subGameResult) decks
                     else crabs context $ nextHand (>) decks
 
-shouldRecurse :: PuzzleInput -> Bool
-shouldRecurse ([], _) = False
-shouldRecurse (_, []) = False
+shouldRecurse :: Decks -> Bool
 shouldRecurse (x:xs, y:ys) = hasAtLeastN x xs && hasAtLeastN y ys
+
+subGameDeck :: Decks -> Decks
+subGameDeck (x:xs, y:ys) = (take x xs, take y ys)
 
 hasAtLeastN :: Int -> [a] -> Bool
 hasAtLeastN n xs = length (take n xs) == n
@@ -83,7 +84,7 @@ evaluate = sum . map (uncurry (*)) . zip [1..] . reverse
 -- =========================================================
 
 --example
-puzzle :: Parser PuzzleInput
+puzzle :: Parser Decks
 puzzle = do
   x <- row
   y <- row
