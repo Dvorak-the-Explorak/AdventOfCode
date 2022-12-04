@@ -2,8 +2,9 @@ import Text.ParserCombinators.Parsec hiding (State)
 import Text.Parsec.Char
 
 import Data.List (foldl', reverse)
-import Data.Either.Extra (fromEither)
+import Data.Either.Extra (fromEither, isLeft)
 import qualified Data.Set as Set
+
 -- import Helpers (chain)
 
 import Debug.Trace (trace)
@@ -36,31 +37,42 @@ getPuzzleInput = do
     (Left err) -> fail $ show err
     (Right puzzleInput) -> return puzzleInput
 
-nextHand :: PuzzleInput -> PuzzleInput
-nextHand ((x:xs), (y:ys)) = 
-  if x > y
-    then (xs ++ [x, y], ys)
-    else (xs, ys ++ [y, x])
 
 solve1 :: PuzzleInput -> Int
 solve1 ([], xs) = evaluate xs
 solve1 (xs, []) = evaluate xs
-solve1 decks = solve1 $ nextHand decks
+solve1 decks = solve1 $ nextHand (>) decks
 
 solve2 :: PuzzleInput -> Int
 solve2 = evaluate . fromEither . crabs Set.empty
 
+
+
+nextHand :: (Int -> Int -> Bool) -> PuzzleInput -> PuzzleInput
+nextHand p ((x:xs), (y:ys)) =
+  if p x y
+    then (xs ++ [x, y], ys)
+    else (xs, ys ++ [y, x])
+
 crabs :: Context -> PuzzleInput -> Either Deck Deck
 crabs prev ([], ys) = Right ys
 crabs prev (xs, []) = Left xs
-crabs prev decks@(xss@(x:xs),yss@(y:ys))
-  | Set.member (xss,yss) prev = Left xss
-  | otherwise = let context = Set.insert decks prev
-                in if x <= length xs && y <= length ys
-                    then case crabs context (take x xs, take y ys) of
-                          (Left _)  -> crabs context (xs ++ [x, y], ys)
-                          (Right _) -> crabs context (xs, ys ++ [y, x])
-                    else crabs context $ nextHand decks
+crabs prev decks@(x:xs, y:ys)
+  | Set.member decks prev = Left $ fst decks
+  | otherwise = let 
+                  context = Set.insert decks prev
+                  subGameResult = isLeft $ crabs context (take x xs, take y ys)
+                in if shouldRecurse decks
+                    then crabs context $ nextHand (const $ const subGameResult) decks
+                    else crabs context $ nextHand (>) decks
+
+shouldRecurse :: PuzzleInput -> Bool
+shouldRecurse ([], _) = False
+shouldRecurse (_, []) = False
+shouldRecurse (x:xs, y:ys) = hasAtLeastN x xs && hasAtLeastN y ys
+
+hasAtLeastN :: Int -> [a] -> Bool
+hasAtLeastN n xs = length (take n xs) == n
 
 evaluate :: Deck -> Int
 evaluate = sum . map (uncurry (*)) . zip [1..] . reverse
