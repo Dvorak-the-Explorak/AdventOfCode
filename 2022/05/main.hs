@@ -3,7 +3,7 @@ import Text.Parsec.Char
 
 import Data.List (foldl', transpose)
 import Data.Maybe (catMaybes)
-import Control.State
+import Control.Monad.State
 -- import Helpers (chain)
 
 import Debug.Trace (trace)
@@ -42,39 +42,44 @@ getPuzzleInput = do
 
 
 solve1 :: PuzzleInput -> [Char]
-solve1 (stacks, []) = map head stacks
-solve1 (stacks, (i:is)) = solve1 (move i stacks, is)
+solve1 (stacks, instrs) = map head $ evalState(mapM move1S instrs >> get) stacks
 
 solve2 :: PuzzleInput -> [Char]
-solve2 (stacks, []) = map head stacks
-solve2 (stacks, (i:is)) = solve2 (moveN i stacks, is)
+solve2 (stacks, instrs) = map head $ evalState(mapM moveS instrs >> get) stacks
 
 
-move :: Instruction -> [Stack] -> [Stack]
-move _ [] = []
-move (0,_,_) stacks = stacks
-move (n,s,d) stacks = move (n-1, s, d) $ push c d stacks'
-  where (c, stacks') = pop s stacks
-
-pop :: Int -> [Stack] -> (Char, [Stack])
-pop n stacks = (head $ stacks !! n, take n stacks ++ [tail $ stacks !! n] ++ drop (n+1) stacks)
+move1S :: Instruction -> State [Stack] ()
+move1S (0,_,_) = return ()
+move1S (n,s,d) = do
+  payload <- popS 1 s
+  pushS payload d
+  move1S (n-1, s, d)
 
 
-push :: Char -> Int -> [Stack] -> [Stack]
-push c n stacks = take n stacks ++ [c:(stacks !! n)] ++ drop (n+1) stacks
+moveS :: Instruction -> State [Stack] ()
+moveS (c,s,d) = do
+  payload <- popS c s
+  pushS payload d
 
+popS :: Int -> Int -> State [Stack] [Char]
+popS num source = do
+  targetStack <- gets (!! source)
+  let payload = take num targetStack
+  modify $ setAt source $ drop num targetStack
+  return payload
 
-moveN :: Instruction -> [Stack] -> [Stack]
-moveN _ [] = []
-moveN (0,_,_) stacks = stacks
-moveN (n,s,d) stacks = pushN cs d stacks'
-  where (cs, stacks') = popN n s stacks
+pushS :: [Char] -> Int -> State [Stack] ()
+pushS payload dest = modify $ modifyAt dest $ (payload ++) 
 
-popN :: Int -> Int -> [Stack] -> ([Char], [Stack])
-popN num n stacks = (take num $ stacks !! n, take n stacks ++ [drop num $ stacks !! n] ++ drop (n+1) stacks)
+setAt :: Int -> a -> [a] -> [a]
+setAt _ _ [] = []
+setAt 0 val (x:xs) = val:xs
+setAt n val (x:xs) = (x:) $ setAt (n-1) val xs
 
-pushN :: [Char] -> Int -> [Stack] -> [Stack]
-pushN cs n stacks = take n stacks ++ [cs ++ (stacks !! n)] ++ drop (n+1) stacks
+modifyAt :: Int -> (a -> a) -> [a] -> [a]
+modifyAt _ _ [] = []
+modifyAt 0 f (x:xs) = (f x):xs
+modifyAt n f (x:xs) = (x:) $ modifyAt (n-1) f xs
 
 
 -- =========================================================
