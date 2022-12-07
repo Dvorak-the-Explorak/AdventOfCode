@@ -15,6 +15,7 @@ getCounts = foldl' (\ acc x -> tally x acc) $ Map.fromList []
     tally x = Map.insertWith (+) x 1
 
 pairs :: [a] -> [(a,a)]
+pairs [] = []
 pairs xs = zip xs $ tail xs
 
 unique :: (Ord a, Eq a) => [a] -> [a]
