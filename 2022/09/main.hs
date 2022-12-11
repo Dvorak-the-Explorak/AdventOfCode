@@ -1,4 +1,4 @@
-import Data.List (foldl')
+import Data.List (foldl', scanl)
 -- import Helpers (chain)
 import Control.Monad.State
 import qualified Data.Set as Set
@@ -71,21 +71,24 @@ dist (x1,y1) (x2,y2) = max (abs $ x1 - x2) (abs $ y1 - y2)
 -- cascade _ [x] = [x]
 -- cascade f (p:x:xs) = p:cascade f ((f p x):xs)
 
-cascade :: (a -> a -> a) -> [a] -> [a]
-cascade _ [] = []
-cascade f (x:xs) = reverse $ foldl' acc [x] xs
-  where
-    --  call f on latest output and next value, 
-    --  add the result to list of outputs
-    -- acc prevs x = f (head prevs) x : prevs
-     --acc prevs = (:prevs) . f (head prevs)
-    -- acc = liftA2 (.) (flip (:)) (f . head)
-    acc = liftA2 fmap (flip (:)) $ f . head -- fucking lol
+-- cascade :: (a -> a -> a) -> [a] -> [a]
+-- cascade _ [] = []
+-- cascade f (x:xs) = reverse $ foldl' acc [x] xs
+--   where
+--     --  call f on latest output and next value, 
+--     --  add the result to list of outputs
+--     -- acc prevs x = f (head prevs) x : prevs
+--      --acc prevs = (:prevs) . f (head prevs)
+--     -- acc = liftA2 (.) (flip (:)) (f . head)
+--     acc = liftA2 fmap (flip (:)) $ f . head -- fucking lol
 
 -- cascade :: (a -> a -> a) -> [a] -> [a]
 -- cascade f [] = []
 -- cascade f (x:xs) = x : zipWith f (cascade f (x:xs)) xs
 
+cascade :: (a -> a -> a) -> [a] -> [a]
+cascade f [] = []
+cascade f (x:xs) = scanl f x xs
 
 
 solve1 :: PuzzleInput-> Int
@@ -97,4 +100,4 @@ solve1 instrs = evalState (mapM step instrs >> gets (Set.size . snd)) initialSta
 solve2 :: PuzzleInput -> Int
 solve2 instrs = evalState (mapM step instrs >> gets (Set.size . snd)) initialState
   where 
-    initialState = (take 20 $ repeat (0,0), Set.fromList [])
+    initialState = (take 10 $ repeat (0,0), Set.fromList [])
