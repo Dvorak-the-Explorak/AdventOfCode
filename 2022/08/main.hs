@@ -10,8 +10,8 @@ import Debug.Trace (trace)
 ttrace x = trace (show x) x
 
 type Grid a = [[a]]
-data SRow a = SRow [a] a [a]
-data SGrid a = SGrid [SRow a] (SRow a) [SRow a]
+newtype SRow a = SRow [a] a [a]
+newtype SGrid a = SGrid [SRow a] (SRow a) [SRow a]
 
 instance Show a => Show (SRow a) where
   show (SRow ls x rs) = unwords (map show ls) ++ "|" ++ show x ++ "|" ++ unlines (map show rs)
