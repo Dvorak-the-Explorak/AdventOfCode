@@ -1,0 +1,34 @@
+
+main.hs:80:27: error:
+    • Couldn't match expected type ‘Int’ with actual type ‘Integer’
+    • In the first argument of ‘target’, namely ‘newVal’
+      In the expression: target newVal
+      In an equation for ‘nextMonkey’: nextMonkey = target newVal
+   |
+80 |   let nextMonkey = target newVal
+   |                           ^^^^^^
+
+main.hs:163:3: error:
+    • Couldn't match type ‘Integer’ with ‘Int’
+      Expected type: Text.Parsec.Prim.ParsecT
+                       String () Data.Functor.Identity.Identity Target
+        Actual type: Text.Parsec.Prim.ParsecT
+                       String () Data.Functor.Identity.Identity (Integer -> Integer)
+    • In a stmt of a 'do' block:
+        return
+          $ \ n -> if n `mod` test == 0 then trueTarget else falseTarget
+      In the expression:
+        do whitespace >> string "Test: divisible by "
+           test <- integer
+           endOfLine
+           whitespace >> string "If true: throw to monkey "
+           ....
+      In an equation for ‘_target’:
+          _target
+            = do whitespace >> string "Test: divisible by "
+                 test <- integer
+                 endOfLine
+                 ....
+    |
+163 |   return $ \n -> if n `mod` test == 0
+    |   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^...
