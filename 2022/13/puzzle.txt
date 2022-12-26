@@ -1,7 +1,3 @@
-Advent of Code[About][Events][Shop][Settings][Log Out]Dvorak-the-Explorak 18*
-   0x0000|2022[Calendar][AoC++][Sponsors][Leaderboard][Stats]
-Our sponsors help make Advent of Code possible:
-Cobwebs - Software challenges that actually protect people and communities
 --- Day 13: Distress Signal ---
 You climb the hill and again try contacting the Elves. However, you instead receive a signal you weren't expecting: a distress signal.
 
