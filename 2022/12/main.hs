@@ -1,3 +1,5 @@
+{-# LANGUAGE TupleSections #-}
+
 import Data.List (foldl', findIndices)
 -- import Helpers (chain)
 import Data.Maybe (catMaybes, fromJust)
@@ -28,9 +30,6 @@ main = do
   let result2 = solve2 vals
   print result2
 
-pair :: a -> b -> (a,b)
-pair x y = (x,y)
-
 bfs :: (Coord -> [Coord]) -> (Coord -> Bool) -> Set Coord -> [(Int, Coord)] -> Maybe Int
 bfs _ _ _ [] = Nothing
 bfs adj end done ((dist,curr):todo)
@@ -40,7 +39,7 @@ bfs adj end done ((dist,curr):todo)
     where 
       done' = Set.insert curr done
       next = filter (not . (`elem` done)) $ adj curr
-      todo' = (todo ++) $ map (pair $ dist+1) next
+      todo' = (todo ++) $ map (dist+1,) next
 
 climbUp :: Grid -> Coord -> [Coord]
 climbUp grid coord = catMaybes $ map ($ coord) [left, right, up, down]
@@ -72,8 +71,6 @@ climbUp grid coord = catMaybes $ map ($ coord) [left, right, up, down]
 
 solve1 :: PuzzleInput -> Maybe Int
 solve1 (start, end, grid) = bfs (climbUp grid) (==end) Set.empty $ [(0,start)]
-
-
 
 solve2 :: PuzzleInput -> Maybe Int
 solve2 (_, start, grid) = bfs paths ((==0) . getGridVal) Set.empty [(0,start)]
@@ -112,7 +109,7 @@ solve2_old (_, end, grid) = minimum $ catMaybes $ map (\x -> solve1 (x,end,grid)
     startRows = findIndices  (0 `elem`) grid
     startCols = map (findIndices  (0 ==)) $ map (grid !!) startRows 
     starts :: [Coord]
-    starts = concat $ zipWith (\r cs -> map (pair r) cs) startRows startCols
+    starts = concat $ zipWith (\r cs -> map (r,) cs) startRows startCols
 
 getPuzzleInput :: IO PuzzleInput
 getPuzzleInput = do
