@@ -1,8 +1,9 @@
-import Data.List (foldl')
+import Data.List (foldl', findIndices)
 -- import Helpers (chain)
-import Data.Maybe (catMaybes)
+import Data.Maybe (catMaybes, fromJust)
 import Data.Char (ord)
 import qualified Data.Set as Set
+-- import Control.Monad.Reader
 
 import Debug.Trace (trace)
 ttrace x = trace (show x) x
@@ -30,27 +31,20 @@ main = do
 pair :: a -> b -> (a,b)
 pair x y = (x,y)
 
-solve1 :: PuzzleInput -> Int
-solve1 (start, end, grid) = bfs Set.empty $ map (pair 1) $ paths start
+bfs :: (Coord -> [Coord]) -> (Coord -> Bool) -> Set Coord -> [(Int, Coord)] -> Maybe Int
+bfs _ _ _ [] = Nothing
+bfs adj end done ((dist,curr):todo)
+  | end curr = Just dist
+  | curr `elem` done = bfs adj end done todo
+  | otherwise = bfs adj end done' todo'
+    where 
+      done' = Set.insert curr done
+      next = filter (not . (`elem` done)) $ adj curr
+      todo' = (todo ++) $ map (pair $ dist+1) next
+
+climbUp :: Grid -> Coord -> [Coord]
+climbUp grid coord = catMaybes $ map ($ coord) [left, right, up, down]
   where
-    bfs _ [] = 1000000
-    bfs visited ((dist,curr):queue)
-      | curr == end = dist
-      | curr `elem` visited = bfs visited queue
-      | otherwise = bfs (Set.insert curr visited) $ (queue ++) $ map (pair $ dist+1) $ filter (not . (`elem` visited)) $ paths curr
-
-    rows = length grid
-    cols = length $ head grid
-
-    getGridVal :: Coord -> Int
-    getGridVal (row, col) = (grid !! row) !! col
-
-    paths :: Coord -> [Coord]
-    paths x = catMaybes $ map ($ x) [left, right, up, down]
-
-    inGrid :: Coord -> Bool
-    inGrid (r,c) = r >= 0 && r < rows && c >= 0 && c < cols
-
     direction :: (Coord -> Coord) -> Coord -> Maybe Coord
     direction move coord =
       let next = move coord in
@@ -60,6 +54,15 @@ solve1 (start, end, grid) = bfs Set.empty $ map (pair 1) $ paths start
             then Just next
             else Nothing
 
+    inGrid :: Coord -> Bool
+    inGrid (r,c) = r >= 0 && r < rows && c >= 0 && c < cols
+
+    rows = length grid
+    cols = length $ head grid
+
+    getGridVal :: Coord -> Int
+    getGridVal (row, col) = (grid !! row) !! col
+
     left :: Coord -> Maybe Coord
     left = direction $ \(r,c) -> (r,c-1)
     right = direction $ \(r,c) -> (r,c+1)
@@ -67,15 +70,14 @@ solve1 (start, end, grid) = bfs Set.empty $ map (pair 1) $ paths start
     down = direction $ \(r,c) -> (r+1,c)
 
 
-solve2 :: PuzzleInput -> Int
-solve2 (_, start, grid) = bfs Set.empty $ map (pair 1) $ paths start
-  where
-    bfs _ [] = 1000000
-    bfs visited ((dist,curr):queue)
-      | getGridVal curr == 0 = dist
-      | curr `elem` visited = bfs visited queue
-      | otherwise = bfs (Set.insert curr visited) $ (queue ++) $ map (pair $ dist+1) $ filter (not . (`elem` visited)) $ paths curr
+solve1 :: PuzzleInput -> Maybe Int
+solve1 (start, end, grid) = bfs (climbUp grid) (==end) Set.empty $ [(0,start)]
 
+
+
+solve2 :: PuzzleInput -> Maybe Int
+solve2 (_, start, grid) = bfs paths ((==0) . getGridVal) Set.empty [(0,start)]
+  where
     rows = length grid
     cols = length $ head grid
 
@@ -105,38 +107,25 @@ solve2 (_, start, grid) = bfs Set.empty $ map (pair 1) $ paths start
 
 -- so slow lol
 solve2_old :: PuzzleInput -> Int
-solve2_old (_, end, grid) = minimum $ map (\x -> solve1 (x,end,grid)) starts
+solve2_old (_, end, grid) = minimum $ catMaybes $ map (\x -> solve1 (x,end,grid)) starts
   where
-    startRows :: [Int]
-    startRows = findAll (0 `elem`) grid
-    startCols :: [[Int]]
-    startCols = map (findAll (0 ==)) $ map (grid !!) startRows 
+    startRows = findIndices  (0 `elem`) grid
+    startCols = map (findIndices  (0 ==)) $ map (grid !!) startRows 
     starts :: [Coord]
     starts = concat $ zipWith (\r cs -> map (pair r) cs) startRows startCols
 
 getPuzzleInput :: IO PuzzleInput
 getPuzzleInput = do
   contents <- lines <$> getContents
-  let sr = find ('S' `elem`) contents
-  let sc = find ('S' ==) $ contents !! sr
-  let er = find ('E' `elem`) contents
-  let ec = find ('E' ==) $ contents !! er
+  let start_row = head $ findIndices ('S' `elem`) contents
+  let start_col = head $ findIndices ('S' ==) $ contents !! start_row
+  let end_row = head $ findIndices ('E' `elem`) contents
+  let end_col = head $ findIndices ('E' ==) $ contents !! end_row
   let grid = map (map height) contents
 
-  return ((sr,sc), (er, ec), grid)
+  return ((start_row,start_col), (end_row,end_col), grid)
 
 height :: Char -> Int
 height 'S' = 0
 height 'E' = 25
 height c = ord c - ord 'a'
-
-find :: (a -> Bool) -> [a] -> Int
-find f (x:xs) 
-  | f x = 0
-  | otherwise = 1 + find f xs
-
-findAll :: (a -> Bool) -> [a] -> [Int]
-findAll f [] = []
-findAll f (x:xs)
-  | f x = 0: map (+1) (findAll f xs)
-  | otherwise = map (+1) $ findAll f xs
